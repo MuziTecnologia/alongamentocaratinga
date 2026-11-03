@@ -4,7 +4,6 @@ import { useEffect, useState, type FormEvent } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
-  ArrowUpRight,
   CalendarDays,
   Check,
   ChevronRight,
@@ -220,9 +219,6 @@ export function BookingPage({ slug }: { slug: string }) {
         <Brand />
         <h1>Esse cantinho ainda não está aberto.</h1>
         <p>{error || 'Confira o endereço do studio e tente novamente.'}</p>
-        <Link href="/" className="button secondary">
-          Voltar ao início
-        </Link>
       </div>
     );
   const b = studio.business;
@@ -584,9 +580,6 @@ export function BookingPage({ slug }: { slug: string }) {
       <footer className="booking-footer">
         <Brand compact />
         <span>{b.name} · Carinho em cada detalhe.</span>
-        <Link href="/entrar">
-          Acesso do studio <ArrowUpRight size={12} />
-        </Link>
       </footer>
     </div>
   );
