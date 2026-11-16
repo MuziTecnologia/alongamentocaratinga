@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import Script from 'next/script';
 import { StudioProvider } from '@/components/studio-provider';
 import './globals.css';
 export const metadata: Metadata = {
@@ -32,6 +33,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
         </noscript>
         <StudioProvider>{children}</StudioProvider>
+        <Script
+          id="metricool-tracker"
+          src="https://tracker.metricool.com/resources/be.js"
+          strategy="afterInteractive"
+        />
+        <Script id="metricool-init" strategy="afterInteractive">
+          {`(function init(n){if(window.beTracker){window.beTracker.t({hash:"64ca5fd0266fde97c7ed4ca3a9a6b6df"})}else if(n<50){setTimeout(function(){init(n+1)},100)}})(0);`}
+        </Script>
       </body>
     </html>
   );
