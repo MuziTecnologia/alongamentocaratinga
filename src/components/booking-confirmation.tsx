@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import type { Service } from '@/lib/types';
 import { currency, dateLabel } from '@/lib/utils';
+import { nailArtLabel } from '@/lib/booking-options';
 import { clientConfirmationLink } from '@/lib/whatsapp-confirmations';
 import { ServicePhoto } from './service-photo';
 
@@ -22,6 +23,8 @@ export type BookingConfirmationProps = {
   address: string;
   studioName: string;
   service: Service;
+  category?: string;
+  nailArt?: boolean;
   professionalName: string;
   onBookAgain: () => void;
 };
@@ -32,6 +35,8 @@ export function BookingConfirmation({
   address,
   studioName,
   service,
+  category = '',
+  nailArt = false,
   professionalName,
   onBookAgain,
 }: BookingConfirmationProps) {
@@ -105,6 +110,9 @@ export function BookingConfirmation({
               <UserRound size={13} />
               Com {professionalName}
             </span>
+            <span className="confirmation-extras">
+              {category && `${category} · `}Nail art: {nailArtLabel(nailArt)}
+            </span>
           </div>
           <div className="confirmation-price">
             <strong>{currency(service.price)}</strong>
@@ -124,6 +132,9 @@ export function BookingConfirmation({
           studioName,
           serviceName: service.name,
           professionalName,
+          category,
+          price: service.price,
+          nailArt,
         })}
         className="button primary confirmation-whatsapp"
         target="_blank"

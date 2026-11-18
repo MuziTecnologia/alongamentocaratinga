@@ -13,11 +13,20 @@ import {
   Instagram,
   MapPin,
   MessageCircle,
+  RefreshCw,
   ShieldCheck,
+  Sparkles,
 } from 'lucide-react';
 import type { PublicStudio, Appointment } from '@/lib/types';
 import { getSupabase, isSupabaseConfigured } from '@/lib/supabase/client';
 import { availableSlots } from '@/lib/domain';
+import {
+  BOOKING_CATEGORIES,
+  nailArtLabel,
+  nailArtNote,
+  serviceBookingCategory,
+  type BookingCategory,
+} from '@/lib/booking-options';
 import {
   addDays,
   atTime,
@@ -45,7 +54,11 @@ export function BookingPage({ slug }: { slug: string }) {
     [slots, setSlots] = useState<string[]>([]),
     [slotsLoading, setSlotsLoading] = useState(false),
     [sending, setSending] = useState(false),
-    [customerName, setCustomerName] = useState('');
+    [customerName, setCustomerName] = useState(''),
+    // Etapa 1 em três momentos: categoria → serviço → nail art (cortesia).
+    [pick, setPick] = useState<'category' | 'service' | 'nailArt'>('category'),
+    [category, setCategory] = useState<BookingCategory | ''>(''),
+    [nailArt, setNailArt] = useState(false);
   const studio: PublicStudio | null = demo
     ? ready && data.business.slug === slug
       ? {
@@ -56,8 +69,23 @@ export function BookingPage({ slug }: { slug: string }) {
         }
       : null
     : remote;
-  const service = studio?.services.find((s) => s.id === serviceId),
+  // Nail art não entra na lista: só pode ser incluída como cortesia de outro serviço.
+  const categoryServices = (c: BookingCategory) =>
+      studio?.services.filter((s) => serviceBookingCategory(s) === c) || [],
+    services = category ? categoryServices(category) : [],
+    service = services.find((s) => s.id === serviceId),
     professional = studio?.professionals.find((p) => p.id === professionalId);
+  function chooseCategory(next: BookingCategory) {
+    if (next !== category) {
+      setCategory(next);
+      if (!categoryServices(next).some((s) => s.id === serviceId)) {
+        setServiceId('');
+        setTime('');
+      }
+    }
+    setPick('service');
+    setError('');
+  }
   function chooseService(id: string) {
     setServiceId(id);
     setTime('');
@@ -75,7 +103,8 @@ export function BookingPage({ slug }: { slug: string }) {
         break;
       }
     }
-    setStep(2);
+    setPick('nailArt');
+    setError('');
   }
   useEffect(() => {
     const supabase = getSupabase();
@@ -132,7 +161,7 @@ export function BookingPage({ slug }: { slug: string }) {
       setError('Confira seu WhatsApp: informe DDD e número.');
       return;
     }
-    if (!service || !studio || !professional || !time) {
+    if (!service || !category || !studio || !professional || !time) {
       setError('Escolha um serviço e um horário antes de continuar.');
       return;
     }
@@ -152,6 +181,7 @@ export function BookingPage({ slug }: { slug: string }) {
             name,
             phone,
             email,
+            nail_art: nailArt,
             website: value(form, 'website'),
           }),
         });
@@ -190,7 +220,7 @@ export function BookingPage({ slug }: { slug: string }) {
           payment_method: '',
           kind: 'booking',
           source: 'link',
-          notes: '',
+          notes: nailArtNote(nailArt),
           customer_package_id: null,
           reminder_sent_at: null,
         };
@@ -308,34 +338,140 @@ export function BookingPage({ slug }: { slug: string }) {
                   </div>
                 ))}
               </div>
-              {step > 1 && (
+              {(step > 1 || pick !== 'category') && (
                 <button
                   className="text-button back-button"
                   onClick={() => {
-                    setStep(step - 1);
+                    if (step > 1) setStep(step - 1);
+                    else setPick(pick === 'nailArt' ? 'service' : 'category');
                     setError('');
                   }}
                 >
                   <ArrowLeft size={15} />
-                  Voltar
+                  {step === 1 && pick === 'service' ? 'Trocar categoria' : 'Voltar'}
                 </button>
               )}
-              {step === 1 && (
+              {step === 1 && pick === 'category' && (
                 <>
                   <span className="eyebrow">VAMOS COMEÇAR PELO QUE VOCÊ AMA</span>
                   <h2>Qual será o seu cuidado?</h2>
-                  <p className="booking-subtitle">Escolha o serviço para reservar seu momento.</p>
+                  <p className="booking-subtitle">
+                    Escolha entre aplicação e manutenção para ver os serviços.
+                  </p>
                   {!b.booking_enabled ? (
                     <Empty
                       title="Uma pequena pausa por aqui"
                       text="O agendamento online está temporariamente fechado. Fale com o studio pelo WhatsApp."
                     />
-                  ) : studio.services.length ? (
+                  ) : BOOKING_CATEGORIES.some((c) => categoryServices(c).length) ? (
                     <div className="booking-services">
-                      {studio.services.map((s) => (
+                      {BOOKING_CATEGORIES.filter((c) => categoryServices(c).length).map((c) => {
+                        const list = categoryServices(c);
+                        return (
+                          <button
+                            key={c}
+                            className={`booking-service ${category === c ? 'selected' : ''}`}
+                            onClick={() => chooseCategory(c)}
+                          >
+                            <span
+                              className="service-photo booking-service-icon"
+                              style={{ background: c === 'Aplicação' ? '#dbe9d8' : '#eee2cf' }}
+                            >
+                              {c === 'Aplicação' ? (
+                                <Sparkles size={22} strokeWidth={1.2} aria-hidden="true" />
+                              ) : (
+                                <RefreshCw size={21} strokeWidth={1.2} aria-hidden="true" />
+                              )}
+                            </span>
+                            <div>
+                              <h3>{c}</h3>
+                              <p>{list.map((s) => s.name).join(' · ')}</p>
+                              <small>
+                                {list.length} {list.length === 1 ? 'serviço' : 'serviços'}
+                              </small>
+                            </div>
+                            <div>
+                              <strong>
+                                a partir de {currency(Math.min(...list.map((s) => s.price)))}
+                              </strong>
+                              <ChevronRight size={17} />
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <Empty
+                      title="O menu está sendo preparado"
+                      text="Em breve, novos momentos de cuidado por aqui."
+                    />
+                  )}
+                  <div className="booking-small-note">
+                    <ShieldCheck size={15} />
+                    Você não precisa criar uma conta para agendar.
+                  </div>
+                </>
+              )}
+              {step === 1 && pick === 'nailArt' && service && (
+                <>
+                  <span className="eyebrow">UM DETALHE A MAIS</span>
+                  <h2>Deseja incluir nail art?</h2>
+                  <p className="booking-subtitle">
+                    {category} · {service.name} · {currency(service.price)}
+                  </p>
+                  <div className="nail-art-picker" role="radiogroup" aria-label="Incluir nail art">
+                    {[true, false].map((option) => (
+                      <button
+                        key={String(option)}
+                        type="button"
+                        role="radio"
+                        aria-checked={nailArt === option}
+                        className={nailArt === option ? 'selected' : ''}
+                        onClick={() => setNailArt(option)}
+                      >
+                        <strong>{option ? 'Sim' : 'Não'}</strong>
+                        <small>{option ? 'Quero uma decoração' : 'Somente o serviço'}</small>
+                        {nailArt === option && <Check size={15} />}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="form-note nail-art-note">
+                    <Heart size={13} />A nail art é uma cortesia do studio e não altera o valor do
+                    serviço.
+                  </p>
+                  <div className="booking-next">
+                    <span>
+                      {currency(service.price)} · Nail art: {nailArtLabel(nailArt)}
+                    </span>
+                    <button
+                      className="button primary"
+                      onClick={() => {
+                        setStep(2);
+                        setError('');
+                      }}
+                    >
+                      Continuar <ArrowRight size={16} />
+                    </button>
+                  </div>
+                </>
+              )}
+              {step === 1 && pick === 'nailArt' && !service && (
+                <Empty
+                  title="Escolha um serviço"
+                  text="Volte e selecione um serviço para continuar."
+                />
+              )}
+              {step === 1 && pick === 'service' && (
+                <>
+                  <span className="eyebrow">{category.toUpperCase()}</span>
+                  <h2>Qual será o seu cuidado?</h2>
+                  <p className="booking-subtitle">Escolha o serviço para reservar seu momento.</p>
+                  {services.length ? (
+                    <div className="booking-services">
+                      {services.map((s) => (
                         <button
                           key={s.id}
-                          className="booking-service"
+                          className={`booking-service ${s.id === serviceId ? 'selected' : ''}`}
                           onClick={() => chooseService(s.id)}
                         >
                           <ServicePhoto
@@ -374,7 +510,8 @@ export function BookingPage({ slug }: { slug: string }) {
                   <span className="eyebrow">UMA PAUSA NA ROTINA</span>
                   <h2>Quando é o seu momento?</h2>
                   <p className="booking-subtitle">
-                    {service?.name} · {service?.duration} min · {currency(service?.price || 0)}
+                    {category} · {service?.name} · {service?.duration} min ·{' '}
+                    {currency(service?.price || 0)} · Nail art: {nailArtLabel(nailArt)}
                   </p>
                   <div className="field">
                     <span>Quem vai cuidar de você?</span>
@@ -486,6 +623,9 @@ export function BookingPage({ slug }: { slug: string }) {
                       <small>
                         {professional?.name} · {service?.duration} min
                       </small>
+                      <small className="booking-summary-extra">
+                        {category} · Nail art: {nailArtLabel(nailArt)}
+                      </small>
                     </div>
                     <strong>{currency(service?.price || 0)}</strong>
                   </div>
@@ -567,9 +707,15 @@ export function BookingPage({ slug }: { slug: string }) {
               address={b.address}
               studioName={b.name}
               service={service!}
+              category={category}
+              nailArt={nailArt}
               professionalName={professional?.name || ''}
               onBookAgain={() => {
                 setStep(1);
+                setPick('category');
+                setCategory('');
+                setServiceId('');
+                setNailArt(false);
                 setTime('');
                 setError('');
               }}

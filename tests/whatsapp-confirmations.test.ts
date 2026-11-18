@@ -40,9 +40,11 @@ test('cliente confirma para o número solicitado com nome completo, data, hora, 
     'Alongamento',
     'Rua das Flores, 25',
     'Marina',
-    'Confirmo minha presença',
+    'Gostaria de confirmar meu agendamento',
+    '*Cliente:* Ana & Maria',
   ])
     assert(message.includes(text));
+  assert(!message.includes('Nail art'), 'sem escolhas informadas, não inventa nail art');
   assert.equal([...url.searchParams.keys()].length, 1);
   const html = renderToStaticMarkup(
     createElement(BookingConfirmation, {
@@ -53,11 +55,53 @@ test('cliente confirma para o número solicitado com nome completo, data, hora, 
       date: '2026-11-04',
       time: '14:30',
       service: data.services[0],
+      category: 'Aplicação',
+      nailArt: true,
       onBookAgain() {},
     }),
   );
   assert(html.includes('href="https://wa.me/553197311275?text='));
+  assert(html.includes('Aplicação · Nail art: Sim (cortesia)'));
+  const href = decodeURIComponent(html.match(/href="(https:\/\/wa\.me[^"]+)"/)![1]);
+  for (const text of [
+    '*Categoria:* Aplicação',
+    `*Serviço:* ${data.services[0].name}`,
+    '*Valor:* R$ 160,00',
+    '*Nail art:* Sim (cortesia)',
+  ])
+    assert(href.includes(text), text);
   assert(html.includes('Confirmar pelo WhatsApp'));
+});
+
+test('mensagem da cliente traz categoria, valor e nail art escolhidos, com URL codificada', () => {
+  for (const nailArt of [true, false]) {
+    const url = new URL(
+      clientConfirmationLink({
+        ...details,
+        serviceName: 'Manutenção - Blindagem',
+        category: 'Manutenção',
+        price: 55,
+        nailArt,
+        date: '2026-11-20',
+        time: '09:30',
+      }),
+    );
+    assert.equal(url.pathname, '/553197311275');
+    const message = url.searchParams.get('text')!;
+    assert(message.startsWith('*CONFIRMAÇÃO DE AGENDAMENTO*'));
+    for (const text of [
+      '*Cliente:* Ana & Maria',
+      '*Categoria:* Manutenção',
+      '*Serviço:* Manutenção - Blindagem',
+      '*Valor:* R$ 55,00',
+      `*Nail art:* ${nailArt ? 'Sim (cortesia)' : 'Não'}`,
+      '20 de novembro de 2026',
+      '*Horário:* 09:30',
+      'Aguardo a confirmação. Obrigada!',
+    ])
+      assert(message.includes(text), text);
+    assert(!url.href.includes(' ') && !url.href.includes('&Maria'));
+  }
 });
 
 test('janela de confirmação abre em 60 minutos e exclui sessões iniciadas, bloqueios e cancelamentos', () => {

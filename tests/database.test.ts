@@ -301,3 +301,51 @@ test('conta única bloqueia outros usuários no banco e no bootstrap sem impedir
   assert(publicBooking);
   await asOwner();
 });
+
+test('migration 004 grava a nail art como cortesia e bloqueia reserva somente de nail art', async () => {
+  await db.exec('reset role');
+  const migration = await readFile(
+    path.join(process.cwd(), 'supabase/migrations/004_nail_art_booking.sql'),
+    'utf8',
+  );
+  await db.exec(migration);
+  await db.exec(migration);
+  await asOwner();
+  const nailArt = await scalar(
+    "insert into public.services(business_id,name,category,duration,price) values($1,'Nail Art (Cortesia exclusiva)','Cuidados',60,0) returning id",
+    [studio],
+  );
+  await db.exec("reset role;select set_config('request.jwt.claim.sub','',false);set role anon;");
+  const withArt = await scalar(
+    "select public.book_appointment('alongamentoscaratinga',$1,$2,$3,'14:00','Cliente Nail Art','33981111111','',true)",
+    [service, pro, date],
+  );
+  // Assinatura antiga (8 argumentos) continua válida e registra "não solicitada".
+  const withoutArt = await scalar(
+    "select public.book_appointment('alongamentoscaratinga',$1,$2,$3,'16:00','Cliente Sem Arte','33982222222','')",
+    [service, pro, date],
+  );
+  await assert.rejects(
+    db.query(
+      "select public.book_appointment('alongamentoscaratinga',$1,$2,$3,'10:00','Só Decoração','33983333333','',true)",
+      [nailArt, pro, addDays(date, 1)],
+    ),
+    /cortesia incluída junto a outro serviço/,
+  );
+  await asOwner();
+  assert.equal(
+    await scalar('select notes from public.appointments where id=$1', [withArt]),
+    'Nail art: Sim (cortesia)',
+  );
+  assert.equal(
+    await scalar('select notes from public.appointments where id=$1', [withoutArt]),
+    'Nail art: Não solicitada',
+  );
+  const price = await scalar<number>('select price from public.appointments where id=$1', [
+    withArt,
+  ]);
+  assert.equal(
+    Number(price),
+    Number(await scalar('select price from public.services where id=$1', [service])),
+  );
+});

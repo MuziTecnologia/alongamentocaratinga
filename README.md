@@ -38,7 +38,7 @@ Os pagamentos são registrados no sistema e realizados diretamente ao studio. N�
 ## Conectar o Supabase
 
 1. Crie um projeto em [Supabase](https://supabase.com/dashboard).
-2. No **SQL Editor**, execute [001_initial.sql](supabase/migrations/001_initial.sql), [002_service_photos.sql](supabase/migrations/002_service_photos.sql) e [003_single_admin.sql](supabase/migrations/003_single_admin.sql), nessa ordem. Em projetos existentes, execute apenas as migrations que ainda não foram aplicadas. A migration 003 restringe o acesso privado à conta definida em `private.admin_access`; sem essa configuração, o acesso privado é negado. As migrations são transacionais: se alguma falhar, corrija a causa antes de executar novamente.
+2. No **SQL Editor**, execute [001_initial.sql](supabase/migrations/001_initial.sql), [002_service_photos.sql](supabase/migrations/002_service_photos.sql) , [003_single_admin.sql](supabase/migrations/003_single_admin.sql) e [004_nail_art_booking.sql](supabase/migrations/004_nail_art_booking.sql), nessa ordem. Em projetos existentes, execute apenas as migrations que ainda não foram aplicadas. A migration 003 restringe o acesso privado à conta definida em `private.admin_access`; sem essa configuração, o acesso privado é negado. A migration 004 grava a escolha de nail art (cortesia) nas observações do agendamento e impede reservar somente a nail art; até ela ser aplicada, as reservas continuam funcionando, mas sem gravar essa escolha. As migrations são transacionais: se alguma falhar, corrija a causa antes de executar novamente.
 3. Em **Project Settings → API**, copie a URL e a chave pública **publishable** (ou a chave legada anon).
 4. Na pasta do projeto:
 

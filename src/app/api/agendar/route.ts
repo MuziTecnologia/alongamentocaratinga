@@ -11,6 +11,7 @@ const schema = z.object({
   name: z.string().trim().min(2).max(120),
   phone: z.string().regex(/^\d{10,11}$/),
   email: z.union([z.email().max(254), z.literal('')]),
+  nail_art: z.boolean().default(false),
   website: z.literal('').optional(),
 });
 export async function POST(request: Request) {
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
       );
     const input = parsed.data;
     const supabase = await createSupabaseServer();
-    const { data, error } = await supabase.rpc('book_appointment', {
+    const args = {
       p_slug: input.slug,
       p_service: input.service_id,
       p_professional: input.professional_id,
@@ -41,7 +42,16 @@ export async function POST(request: Request) {
       p_name: input.name,
       p_phone: input.phone,
       p_email: input.email,
+    };
+    let { data, error } = await supabase.rpc('book_appointment', {
+      ...args,
+      p_nail_art: input.nail_art,
     });
+    // Banco sem a migration 004: mantém a reserva funcionando sem gravar a nail art.
+    if (error?.code === 'PGRST202') {
+      console.warn('book_appointment sem p_nail_art: execute a migration 004_nail_art_booking.');
+      ({ data, error } = await supabase.rpc('book_appointment', args));
+    }
     if (error)
       return NextResponse.json(
         {

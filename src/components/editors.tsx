@@ -301,6 +301,8 @@ export function EntityEditor({
                   list="categories"
                 />
                 <datalist id="categories">
+                  <option>Aplicação</option>
+                  <option>Manutenção</option>
                   <option>Alongamento</option>
                   <option>Esmaltação</option>
                   <option>Cuidados</option>

@@ -3224,6 +3224,55 @@ td .table-person {
   background: #f3f8eb;
   color: #8aa674;
 }
+.booking-service.selected h3 {
+  color: #3f692f;
+}
+.nail-art-picker {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.nail-art-picker > button {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 13px 14px;
+  border: 1px solid #e6eedb;
+  border-radius: 7px;
+  color: #a7bb95;
+  text-align: left;
+  min-height: 62px;
+}
+.nail-art-picker strong {
+  font-size: 11px;
+  font-weight: 500;
+}
+.nail-art-picker small {
+  font-size: 9px;
+  color: #b5c3a5;
+}
+.nail-art-picker > button > svg {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+.nail-art-picker > button.selected {
+  border-color: #b9cea5;
+  background: #f3f8eb;
+  color: #8aa674;
+}
+.nail-art-note {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 14px;
+}
+.booking-summary-extra {
+  display: block;
+  margin-top: 3px;
+}
 .booking-date-heading {
   display: flex;
   justify-content: space-between;

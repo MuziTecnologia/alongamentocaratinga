@@ -1,5 +1,6 @@
 import type { Appointment } from './types';
-import { dateLabel, timeLabel, whatsapp } from './utils';
+import { nailArtLabel } from './booking-options';
+import { currency, dateLabel, timeLabel, whatsapp } from './utils';
 
 export const STUDIO_CONFIRMATION_PHONE = '553197311275';
 
@@ -9,6 +10,10 @@ type BookingDetails = {
   serviceName: string;
   professionalName: string;
   address: string;
+  /** Escolhas do agendamento público; o lembrete do painel não as informa. */
+  category?: string;
+  price?: number;
+  nailArt?: boolean;
 };
 
 const singleLine = (text: string) => text.replace(/\s+/g, ' ').trim();
@@ -17,7 +22,10 @@ function appointmentSummary(details: BookingDetails, date: string, time: string)
   const professional = singleLine(details.professionalName);
   const address = singleLine(details.address).replace(/[\s,;:.!?]+$/g, '');
   return [
+    details.category && `*Categoria:* ${singleLine(details.category)}`,
     `*Serviço:* ${singleLine(details.serviceName)}`,
+    details.price !== undefined && `*Valor:* ${singleLine(currency(details.price))}`,
+    details.nailArt !== undefined && `*Nail art:* ${nailArtLabel(details.nailArt)}`,
     `*Data:* ${dateLabel(date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`,
     `*Horário:* ${time} (horário de Brasília)`,
     professional &&
@@ -35,9 +43,9 @@ export function clientConfirmationLink(details: BookingDetails & { date: string;
     STUDIO_CONFIRMATION_PHONE,
     [
       `*CONFIRMAÇÃO DE AGENDAMENTO*\n*${singleLine(studioName)}*`,
-      `Olá! Sou *${singleLine(customerName)}*.\nConfirmo minha presença no atendimento abaixo:`,
-      appointmentSummary(details, date, time),
-      'Até lá!',
+      'Olá! Gostaria de confirmar meu agendamento.',
+      `*Cliente:* ${singleLine(customerName)}\n${appointmentSummary(details, date, time)}`,
+      'Aguardo a confirmação. Obrigada!',
     ]
       .filter(Boolean)
       .join('\n\n'),
