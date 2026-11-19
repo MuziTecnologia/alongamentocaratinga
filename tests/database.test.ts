@@ -497,3 +497,64 @@ test('migration 007 publica pacotes ativos e registra o pacote na reserva', asyn
     'Nail art: Sim (cortesia) · Pacote: Alongamento (4 sessões · R$ 280,00)',
   );
 });
+
+test('migration 008: categorias do studio publicadas e usadas na regra de nail art', async () => {
+  await db.exec('reset role');
+  const migration = await readFile(
+    path.join(process.cwd(), 'supabase/migrations/008_service_categories_list.sql'),
+    'utf8',
+  );
+  await db.exec(migration);
+  await db.exec(migration);
+  await asOwner();
+  // Padrão para studios existentes.
+  assert.deepEqual(
+    await scalar('select service_categories from public.businesses where id=$1', [studio]),
+    [{ name: 'Aplicação' }, { name: 'Manutenção' }, { name: 'Nail Art', nail_art: true }],
+  );
+  const categories = [
+    { name: 'Alongamentos' },
+    { name: 'Esmaltação' },
+    { name: 'Arte nas unhas', nail_art: true },
+  ];
+  await db.query('update public.businesses set service_categories=$1::jsonb where id=$2', [
+    JSON.stringify(categories),
+    studio,
+  ]);
+  await assert.rejects(
+    db.query('update public.businesses set service_categories=$1::jsonb where id=$2', [
+      '{"name":"x"}',
+      studio,
+    ]),
+    { code: '23514' },
+  );
+  const art = await scalar(
+    "insert into public.services(business_id,name,category,duration,price) values($1,'Pintura à mão','Arte nas unhas',30,0) returning id",
+    [studio],
+  );
+  const custom = await scalar(
+    "insert into public.services(business_id,name,category,duration,price) values($1,'Nail art express','Esmaltação',45,50) returning id",
+    [studio],
+  );
+  await db.exec("reset role;select set_config('request.jwt.claim.sub','',false);set role anon;");
+  const publicData = await scalar<{ business: { service_categories: unknown } }>(
+    "select public.get_public_studio('alongamentoscaratinga')",
+  );
+  assert.deepEqual(publicData.business.service_categories, categories);
+  const day = addDays(date, 5);
+  // Categoria comum vence o nome com "nail art"; categoria marcada como nail art é recusada.
+  assert(
+    await scalar(
+      "select public.book_appointment('alongamentoscaratinga',$1,$2,$3,'09:00','Cliente Esmaltação','33988888888','',false)",
+      [custom, pro, day],
+    ),
+  );
+  await assert.rejects(
+    db.query(
+      "select public.book_appointment('alongamentoscaratinga',$1,$2,$3,'14:00','Cliente Arte','33989999999','',true)",
+      [art, pro, day],
+    ),
+    /cortesia incluída junto a outro serviço/,
+  );
+  await asOwner();
+});

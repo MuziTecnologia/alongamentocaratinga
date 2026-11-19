@@ -20,6 +20,13 @@ export type Business = {
   email_reminders: boolean;
   /** Textos e foto da etapa "Deseja incluir nail art?" (migration 005). Vazio = padrão. */
   nail_art_step?: Partial<NailArtStep>;
+  /** Categorias de serviço do studio (migration 008). Ausente = Aplicação, Manutenção, Nail Art. */
+  service_categories?: ServiceCategoryDef[];
+};
+export type ServiceCategoryDef = {
+  name: string;
+  /** Categoria de nail art: cortesia, não é agendada como serviço principal. */
+  nail_art?: boolean;
 };
 export type NailArtStep = {
   eyebrow: string;

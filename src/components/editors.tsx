@@ -17,10 +17,14 @@ import { useStudio } from './studio-provider';
 import { ServicePhotoPicker } from './service-photo-picker';
 import { uploadStudioImage, validatePhotoUrl } from '@/lib/studio-images';
 import {
-  SERVICE_CATEGORIES,
+  CATEGORY_NAME_MAX,
+  bookingCategories,
   explicitServiceCategory,
+  serviceCategoriesOf,
   serviceCategory,
+  validateServiceCategories,
 } from '@/lib/booking-options';
+const NEW_CATEGORY = '__nova_categoria__';
 export type EditorKind =
   | 'clients'
   | 'services'
@@ -48,8 +52,10 @@ export function EntityEditor({
   initial?: EditorRow;
   onClose: () => void;
 }) {
-  const { data, save, remove, notify, busy, demo } = useStudio();
+  const { data, save, saveBusiness, remove, notify, busy, demo } = useStudio();
   const row = initial || {};
+  const categories = serviceCategoriesOf(data.business);
+  const [newCategory, setNewCategory] = useState(false);
   const [err, setErr] = useState(''),
     [confirmDelete, setConfirmDelete] = useState(false);
   const [packageId, setPackageId] = useState(
@@ -88,6 +94,17 @@ export function EntityEditor({
         break;
       }
       case 'services': {
+        // "＋ Nova categoria…": valida antes de enviar foto ou salvar qualquer coisa.
+        let category = value(form, 'category');
+        const added = newCategory ? value(form, 'new_category').trim() : '';
+        if (newCategory) {
+          const problem = validateServiceCategories([...categories, { name: added }]);
+          if (problem) {
+            setErr(problem);
+            return;
+          }
+          category = added;
+        }
         let savedPhotoUrl = photoUrl.trim();
         try {
           if (photoFile) {
@@ -103,11 +120,19 @@ export function EntityEditor({
         } finally {
           setPhotoUploading(false);
         }
+        if (
+          added &&
+          !(await saveBusiness({
+            ...data.business,
+            service_categories: [...categories, { name: added }],
+          }))
+        )
+          return;
         record = {
           ...common,
           name: value(form, 'name'),
           description: value(form, 'description'),
-          category: value(form, 'category'),
+          category,
           duration: numberValue(form, 'duration'),
           price: numberValue(form, 'price'),
           color: value(form, 'color'),
@@ -301,7 +326,7 @@ export function EntityEditor({
               <Field
                 label="Categoria"
                 hint={
-                  row.id && !explicitServiceCategory({ category: text('category') })
+                  row.id && !explicitServiceCategory({ category: text('category') }, categories)
                     ? `Antes: "${text('category')}". Confira a categoria e salve.`
                     : undefined
                 }
@@ -311,15 +336,33 @@ export function EntityEditor({
                   required
                   defaultValue={
                     row.id
-                      ? serviceCategory({ name: text('name'), category: text('category') })
-                      : 'Aplicação'
+                      ? serviceCategory(
+                          { name: text('name'), category: text('category') },
+                          categories,
+                        )
+                      : bookingCategories(categories)[0] || categories[0].name
                   }
+                  onChange={(e) => setNewCategory(e.target.value === NEW_CATEGORY)}
                 >
-                  {SERVICE_CATEGORIES.map((c) => (
-                    <option key={c}>{c}</option>
+                  {categories.map((c) => (
+                    <option key={c.name} value={c.name}>
+                      {c.name}
+                    </option>
                   ))}
+                  <option value={NEW_CATEGORY}>＋ Nova categoria…</option>
                 </select>
               </Field>
+              {newCategory && (
+                <Field label="Nome da nova categoria">
+                  <input
+                    name="new_category"
+                    required
+                    autoFocus
+                    maxLength={CATEGORY_NAME_MAX}
+                    placeholder="Ex.: Esmaltação"
+                  />
+                </Field>
+              )}
               {colorField}
             </div>
             {activeField}

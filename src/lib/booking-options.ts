@@ -1,46 +1,98 @@
-import type { NailArtStep, Service } from './types';
+import type { NailArtStep, Service, ServiceCategoryDef } from './types';
 
-/** Categorias que o studio escolhe no cadastro de cada serviço. */
-export const SERVICE_CATEGORIES = ['Aplicação', 'Manutenção', 'Nail Art'] as const;
-export type ServiceCategory = (typeof SERVICE_CATEGORIES)[number];
-/** Categorias oferecidas como serviço principal no agendamento público. */
-export const BOOKING_CATEGORIES = ['Aplicação', 'Manutenção'] as const;
-export type BookingCategory = (typeof BOOKING_CATEGORIES)[number];
+/** Categorias padrão, usadas enquanto o studio não salvar a própria lista. */
+export const DEFAULT_SERVICE_CATEGORIES: ServiceCategoryDef[] = [
+  { name: 'Aplicação' },
+  { name: 'Manutenção' },
+  { name: 'Nail Art', nail_art: true },
+];
+/** Nome reservado para o cartão de pacotes no agendamento. */
+export const PACKAGES_CATEGORY = 'Pacotes';
+export const CATEGORY_NAME_MAX = 40;
+
+type Categories = readonly ServiceCategoryDef[];
+type ServiceLike = Pick<Service, 'name' | 'category'>;
 
 // Remove acentos (marcas combinantes após NFD) para comparar nomes e categorias.
 const normalize = (text: string) =>
   text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
+export const sameCategory = (a: string, b: string) => normalize(a) === normalize(b);
 
-/** Categoria escolhida no cadastro, quando é uma das três; null para valores antigos. */
+/** Lista de categorias do studio, limpa (sem vazios/duplicados), ou a padrão. */
+export function serviceCategoriesOf(
+  business?: { service_categories?: unknown } | null,
+): Categories {
+  const raw = Array.isArray(business?.service_categories) ? business.service_categories : [];
+  const list: ServiceCategoryDef[] = [];
+  for (const item of raw as ServiceCategoryDef[]) {
+    const name = typeof item?.name === 'string' ? item.name.trim() : '';
+    if (name && !list.some((c) => sameCategory(c.name, name)))
+      list.push({ name, ...(item.nail_art ? { nail_art: true } : {}) });
+  }
+  return list.length ? list : DEFAULT_SERVICE_CATEGORIES;
+}
+
+/** Categoria cadastrada no serviço, quando está na lista do studio; null para valores antigos. */
 export function explicitServiceCategory(
   service: Pick<Service, 'category'>,
-): ServiceCategory | null {
-  const category = normalize(service.category || '');
-  return SERVICE_CATEGORIES.find((c) => normalize(c) === category) ?? null;
+  categories: Categories = DEFAULT_SERVICE_CATEGORIES,
+): string | null {
+  return categories.find((c) => sameCategory(c.name, service.category || ''))?.name ?? null;
 }
 
 /**
- * Categoria do serviço: a escolhida no cadastro ou, para serviços antigos
- * (ex.: "Cuidados"), uma sugestão pelo nome — usada só até o studio salvar uma categoria.
+ * Categoria do serviço: a cadastrada ou, para serviços antigos (ex.: "Cuidados"),
+ * uma sugestão pelo nome — usada só até o studio salvar uma categoria da lista.
  */
-export function serviceCategory(service: Pick<Service, 'name' | 'category'>): ServiceCategory {
-  const explicit = explicitServiceCategory(service);
+export function serviceCategory(
+  service: ServiceLike,
+  categories: Categories = DEFAULT_SERVICE_CATEGORIES,
+): string {
+  const explicit = explicitServiceCategory(service, categories);
   if (explicit) return explicit;
+  const main = categories.filter((c) => !c.nail_art),
+    byName = (n: string) => main.find((c) => sameCategory(c.name, n))?.name,
+    fallback = byName('Aplicação') || main[0]?.name || categories[0].name;
   const name = normalize(service.name);
-  if (/nail ?art|decoracao/.test(name)) return 'Nail Art';
-  return name.startsWith('manutencao') ? 'Manutenção' : 'Aplicação';
+  if (/nail ?art|decoracao/.test(name)) return categories.find((c) => c.nail_art)?.name || fallback;
+  return name.startsWith('manutencao') ? byName('Manutenção') || fallback : fallback;
 }
 
 /** Nail art é cortesia vinculada a um serviço principal; nunca é agendada sozinha. */
-export const isNailArtService = (service: Pick<Service, 'name' | 'category'>) =>
-  serviceCategory(service) === 'Nail Art';
+export const isNailArtService = (
+  service: ServiceLike,
+  categories: Categories = DEFAULT_SERVICE_CATEGORIES,
+) => {
+  const category = serviceCategory(service, categories);
+  return Boolean(categories.find((c) => c.name === category)?.nail_art);
+};
 
-/** Categoria no agendamento público; serviços de Nail Art não aparecem como principais. */
+/** Categoria no agendamento público; categorias de nail art não aparecem como principais. */
 export function serviceBookingCategory(
-  service: Pick<Service, 'name' | 'category'>,
-): BookingCategory | null {
-  const category = serviceCategory(service);
-  return category === 'Nail Art' ? null : category;
+  service: ServiceLike,
+  categories: Categories = DEFAULT_SERVICE_CATEGORIES,
+): string | null {
+  return isNailArtService(service, categories) ? null : serviceCategory(service, categories);
+}
+
+/** Categorias oferecidas como serviço principal no agendamento, na ordem do studio. */
+export const bookingCategories = (categories: Categories) =>
+  categories.filter((c) => !c.nail_art).map((c) => c.name);
+
+/** Valida a lista editada no painel; devolve a mensagem de erro ou ''. */
+export function validateServiceCategories(categories: ServiceCategoryDef[]): string {
+  const names = categories.map((c) => c.name.trim());
+  if (names.some((n) => !n)) return 'Dê um nome para cada categoria.';
+  if (names.some((n) => n.length > CATEGORY_NAME_MAX))
+    return `Use até ${CATEGORY_NAME_MAX} caracteres no nome da categoria.`;
+  if (names.some((n, i) => names.findIndex((m) => sameCategory(m, n)) !== i))
+    return 'Já existe uma categoria com esse nome.';
+  if (names.some((n) => sameCategory(n, PACKAGES_CATEGORY)))
+    return '"Pacotes" é reservado para os pacotes do agendamento. Escolha outro nome.';
+  if (!categories.some((c) => !c.nail_art))
+    return 'Mantenha pelo menos uma categoria que não seja de nail art.';
+  if (categories.length > 30) return 'Use no máximo 30 categorias.';
+  return '';
 }
 
 /** Textos padrão da etapa de nail art; o studio pode trocá-los no painel (Meu site). */

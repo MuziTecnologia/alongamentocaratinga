@@ -22,13 +22,15 @@ import type { PublicStudio, Appointment } from '@/lib/types';
 import { getSupabase, isSupabaseConfigured } from '@/lib/supabase/client';
 import { availableSlots } from '@/lib/domain';
 import {
-  BOOKING_CATEGORIES,
+  PACKAGES_CATEGORY,
+  bookingCategories,
   nailArtLabel,
   nailArtNote,
   nailArtStep,
   packageNote,
+  sameCategory,
   serviceBookingCategory,
-  type BookingCategory,
+  serviceCategoriesOf,
 } from '@/lib/booking-options';
 import {
   addDays,
@@ -44,7 +46,14 @@ import { useStudio } from './studio-provider';
 import { Avatar, Brand, Empty, Field, formValues, value } from './ui';
 import { ServicePhoto } from './service-photo';
 import { BookingConfirmation } from './booking-confirmation';
-type FlowCategory = BookingCategory | 'Pacotes';
+// Categoria escolhida na etapa 1: uma das categorias do studio ou "Pacotes".
+type FlowCategory = string;
+const CATEGORY_COLORS = ['#dbe9d8', '#eee2cf', '#dce9e8', '#f3dfd6', '#e7e9cd'];
+/** "Escolha entre aplicação, manutenção ou um pacote." conforme as opções existentes. */
+function categoryPrompt(options: string[]) {
+  if (options.length < 2) return 'Escolha uma opção para ver os serviços.';
+  return `Escolha entre ${options.slice(0, -1).join(', ')} ou ${options[options.length - 1]}.`;
+}
 export function BookingPage({ slug }: { slug: string }) {
   const { data, ready, demo, save, notify } = useStudio();
   const [remote, setRemote] = useState<PublicStudio | null>(null),
@@ -76,20 +85,22 @@ export function BookingPage({ slug }: { slug: string }) {
       : null
     : remote;
   const nailStep = nailArtStep(studio?.business.nail_art_step);
+  const categoryList = serviceCategoriesOf(studio?.business);
   // Nail art não entra na lista: só pode ser incluída como cortesia de outro serviço.
-  const categoryServices = (c: BookingCategory) =>
-      studio?.services.filter((s) => serviceBookingCategory(s) === c) || [],
-    // Pacotes cujo serviço pode ser agendado (ativo e que não seja Nail Art).
+  const categoryServices = (c: string) =>
+      studio?.services.filter((s) => serviceBookingCategory(s, categoryList) === c) || [],
+    mainCategories = bookingCategories(categoryList).filter((c) => categoryServices(c).length),
+    // Pacotes cujo serviço pode ser agendado (ativo e que não seja de nail art).
     packages = (studio?.packages || []).filter((p) => {
       const s = studio?.services.find((x) => x.id === p.service_id);
-      return s && serviceBookingCategory(s) !== null;
+      return s && serviceBookingCategory(s, categoryList) !== null;
     }),
-    pack = category === 'Pacotes' ? packages.find((p) => p.id === packageId) : undefined,
-    services = category && category !== 'Pacotes' ? categoryServices(category) : [],
-    service =
-      category === 'Pacotes'
-        ? pack && studio?.services.find((s) => s.id === pack.service_id)
-        : services.find((s) => s.id === serviceId),
+    isPackages = category === PACKAGES_CATEGORY,
+    pack = isPackages ? packages.find((p) => p.id === packageId) : undefined,
+    services = category && !isPackages ? categoryServices(category) : [],
+    service = isPackages
+      ? pack && studio?.services.find((s) => s.id === pack.service_id)
+      : services.find((s) => s.id === serviceId),
     // Valor exibido: preço do pacote ou do serviço.
     price = pack ? pack.price : service?.price || 0,
     packageLabel = pack ? `${pack.name} · ${pack.sessions} sessões` : '',
@@ -99,8 +110,8 @@ export function BookingPage({ slug }: { slug: string }) {
       setCategory(next);
       setPackageId('');
       if (
-        next === 'Pacotes' ||
-        category === 'Pacotes' ||
+        next === PACKAGES_CATEGORY ||
+        isPackages ||
         !categoryServices(next).some((s) => s.id === serviceId)
       ) {
         setServiceId('');
@@ -385,19 +396,19 @@ export function BookingPage({ slug }: { slug: string }) {
                   <span className="eyebrow">VAMOS COMEÇAR PELO QUE VOCÊ AMA</span>
                   <h2>Qual será o seu cuidado?</h2>
                   <p className="booking-subtitle">
-                    {packages.length
-                      ? 'Escolha entre aplicação, manutenção ou um pacote.'
-                      : 'Escolha entre aplicação e manutenção para ver os serviços.'}
+                    {categoryPrompt([
+                      ...mainCategories.map((c) => c.toLowerCase()),
+                      ...(packages.length ? ['um pacote'] : []),
+                    ])}
                   </p>
                   {!b.booking_enabled ? (
                     <Empty
                       title="Uma pequena pausa por aqui"
                       text="O agendamento online está temporariamente fechado. Fale com o studio pelo WhatsApp."
                     />
-                  ) : BOOKING_CATEGORIES.some((c) => categoryServices(c).length) ||
-                    packages.length ? (
+                  ) : mainCategories.length || packages.length ? (
                     <div className="booking-services">
-                      {BOOKING_CATEGORIES.filter((c) => categoryServices(c).length).map((c) => {
+                      {mainCategories.map((c, index) => {
                         const list = categoryServices(c);
                         return (
                           <button
@@ -407,12 +418,16 @@ export function BookingPage({ slug }: { slug: string }) {
                           >
                             <span
                               className="service-photo booking-service-icon"
-                              style={{ background: c === 'Aplicação' ? '#dbe9d8' : '#eee2cf' }}
+                              style={{
+                                background: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
+                              }}
                             >
-                              {c === 'Aplicação' ? (
+                              {sameCategory(c, 'Aplicação') ? (
                                 <Sparkles size={22} strokeWidth={1.2} aria-hidden="true" />
-                              ) : (
+                              ) : sameCategory(c, 'Manutenção') ? (
                                 <RefreshCw size={21} strokeWidth={1.2} aria-hidden="true" />
+                              ) : (
+                                <Flower2 size={22} strokeWidth={1.2} aria-hidden="true" />
                               )}
                             </span>
                             <div>
@@ -433,8 +448,8 @@ export function BookingPage({ slug }: { slug: string }) {
                       })}
                       {packages.length > 0 && (
                         <button
-                          className={`booking-service ${category === 'Pacotes' ? 'selected' : ''}`}
-                          onClick={() => chooseCategory('Pacotes')}
+                          className={`booking-service ${isPackages ? 'selected' : ''}`}
+                          onClick={() => chooseCategory(PACKAGES_CATEGORY)}
                         >
                           <span
                             className="service-photo booking-service-icon"
@@ -533,11 +548,11 @@ export function BookingPage({ slug }: { slug: string }) {
                   <span className="eyebrow">{category.toUpperCase()}</span>
                   <h2>Qual será o seu cuidado?</h2>
                   <p className="booking-subtitle">
-                    {category === 'Pacotes'
+                    {isPackages
                       ? 'Escolha o pacote e agende a primeira sessão.'
                       : 'Escolha o serviço para reservar seu momento.'}
                   </p>
-                  {category === 'Pacotes' ? (
+                  {isPackages ? (
                     <div className="booking-services">
                       {packages.map((p) => {
                         const s = studio.services.find((x) => x.id === p.service_id)!;

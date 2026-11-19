@@ -44,6 +44,8 @@ function humanError(error: unknown): string {
   if (err?.code === '23503')
     return 'Este registro possui histórico vinculado. Desative-o para preservar os atendimentos.';
   if (err?.code === '23505') return 'Já existe um registro com esses dados.';
+  if (err?.code === 'PGRST204' && err.message?.includes('service_categories'))
+    return 'O banco precisa da atualização das categorias. Execute supabase/migrations/008_service_categories_list.sql no SQL Editor.';
   if (err?.code === 'PGRST204' && err.message?.includes('nail_art_step'))
     return 'O banco precisa da atualização da etapa de nail art. Execute supabase/migrations/005_nail_art_step.sql no SQL Editor.';
   if (err?.code === 'PGRST204' && err.message?.includes('photo_url'))

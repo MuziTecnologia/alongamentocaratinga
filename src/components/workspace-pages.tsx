@@ -15,6 +15,7 @@ import {
   Pencil,
   Search,
   Sparkles,
+  Tags,
   Upload,
   Users,
   Wallet,
@@ -24,7 +25,8 @@ import { ServicePhoto } from './service-photo';
 import { AddButton, Avatar, Badge, Empty, Modal, PageHeading, SectionHead, Stat } from './ui';
 import { AppointmentList, type OpenEditor } from './workspace';
 import type { Appointment, Client } from '@/lib/types';
-import { SERVICE_CATEGORIES, serviceCategory } from '@/lib/booking-options';
+import { serviceCategoriesOf, serviceCategory } from '@/lib/booking-options';
+import { ServiceCategoriesEditor } from './service-categories-editor';
 import {
   addDays,
   currency,
@@ -454,16 +456,18 @@ export function ClientsPage({
 export function ServicesPage({ onEditor }: { onEditor: OpenEditor }) {
   const { data } = useStudio();
   const [category, setCategory] = useState('all'),
-    [query, setQuery] = useState('');
-  // Aplicação, Manutenção e Nail Art sempre aparecem; serviços antigos (ex.: "Cuidados")
-  // ficam na categoria sugerida pelo nome até o studio salvar a categoria escolhida.
-  const categories = SERVICE_CATEGORIES.map((c) => ({
-    name: c,
-    count: data.services.filter((s) => serviceCategory(s) === c).length,
+    [query, setQuery] = useState(''),
+    [editingCategories, setEditingCategories] = useState(false);
+  // Categorias do studio (editáveis); serviços antigos (ex.: "Cuidados") ficam na
+  // categoria sugerida pelo nome até o studio salvar uma categoria da lista.
+  const list = serviceCategoriesOf(data.business);
+  const categories = list.map((c) => ({
+    name: c.name,
+    count: data.services.filter((s) => serviceCategory(s, list) === c.name).length,
   }));
   const services = data.services.filter(
     (s) =>
-      (category === 'all' || serviceCategory(s) === category) &&
+      (category === 'all' || serviceCategory(s, list) === category) &&
       s.name.toLowerCase().includes(query.toLowerCase()),
   );
   return (
@@ -472,8 +476,17 @@ export function ServicesPage({ onEditor }: { onEditor: OpenEditor }) {
         eyebrow="O SEU TALENTO, EM CADA DETALHE"
         title="Seu menu de cuidados."
         subtitle="Serviços, valores e tempo de dedicação. Tudo com a sua assinatura."
-        action={<AddButton onClick={() => onEditor('services')}>Novo serviço</AddButton>}
+        action={
+          <div className="heading-actions">
+            <button className="button secondary" onClick={() => setEditingCategories(true)}>
+              <Tags size={16} />
+              Categorias
+            </button>
+            <AddButton onClick={() => onEditor('services')}>Novo serviço</AddButton>
+          </div>
+        }
       />
+      {editingCategories && <ServiceCategoriesEditor onClose={() => setEditingCategories(false)} />}
       <div className="list-toolbar standalone">
         <div className="filter-tabs no-border">
           <button
@@ -518,7 +531,7 @@ export function ServicesPage({ onEditor }: { onEditor: OpenEditor }) {
                 <MoreHorizontal size={21} />
               </button>
             </div>
-            <span className="eyebrow">{serviceCategory(s)}</span>
+            <span className="eyebrow">{serviceCategory(s, list)}</span>
             <h2>{s.name}</h2>
             <p>{s.description || 'Um cuidado especial, do seu jeito.'}</p>
             <div className="service-card-footer">

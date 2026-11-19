@@ -2,7 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createDemoData } from '../src/lib/demo';
 import {
+  DEFAULT_SERVICE_CATEGORIES,
   NAIL_ART_STEP_DEFAULTS,
+  bookingCategories,
   explicitServiceCategory,
   isNailArtService,
   nailArtLabel,
@@ -10,7 +12,9 @@ import {
   nailArtStep,
   packageNote,
   serviceBookingCategory,
+  serviceCategoriesOf,
   serviceCategory,
+  validateServiceCategories,
 } from '../src/lib/booking-options';
 
 const svc = (name: string, category = 'Cuidados') => ({ name, category });
@@ -102,4 +106,41 @@ test('observação do pacote no modo demo usa o mesmo texto gravado pelo banco',
     nailArtNote(false) + packageNote({ name: 'Alongamento', sessions: 4, price: 280 }),
     'Nail art: Não solicitada · Pacote: Alongamento (4 sessões · R$ 280,00)',
   );
+});
+
+test('categorias do studio: renomeadas, novas e marcação de nail art', () => {
+  const list = serviceCategoriesOf({
+    service_categories: [
+      { name: 'Alongamentos' },
+      { name: ' Manutenção ' },
+      { name: 'Esmaltação' },
+      { name: 'Arte nas unhas', nail_art: true },
+      { name: 'esmaltação' },
+      { name: '' },
+    ],
+  });
+  assert.deepEqual(
+    list.map((c) => c.name),
+    ['Alongamentos', 'Manutenção', 'Esmaltação', 'Arte nas unhas'],
+  );
+  assert.deepEqual(bookingCategories(list), ['Alongamentos', 'Manutenção', 'Esmaltação']);
+  assert.equal(serviceCategory(svc('Pé e mão', 'esmaltação'), list), 'Esmaltação');
+  assert.equal(serviceBookingCategory(svc('Pintura', 'Arte nas unhas'), list), null);
+  // Categoria antiga: sugestão pelo nome, usando os nomes atuais da lista.
+  assert.equal(serviceCategory(svc('Manutenção - Blindagem'), list), 'Manutenção');
+  assert.equal(serviceCategory(svc('Blindagem'), list), 'Alongamentos');
+  assert.equal(serviceCategory(svc('Nail Art (Cortesia exclusiva)'), list), 'Arte nas unhas');
+  // Sem lista salva: padrão.
+  assert.deepEqual(serviceCategoriesOf({}), DEFAULT_SERVICE_CATEGORIES);
+  assert.deepEqual(serviceCategoriesOf(null), DEFAULT_SERVICE_CATEGORIES);
+});
+
+test('validação da lista de categorias editada no painel', () => {
+  const ok = [{ name: 'Aplicação' }, { name: 'Nail Art', nail_art: true }];
+  assert.equal(validateServiceCategories(ok), '');
+  assert.match(validateServiceCategories([...ok, { name: ' ' }]), /nome/);
+  assert.match(validateServiceCategories([...ok, { name: 'aplicacao' }]), /Já existe/);
+  assert.match(validateServiceCategories([...ok, { name: 'Pacotes' }]), /reservado/);
+  assert.match(validateServiceCategories([{ name: 'Nail Art', nail_art: true }]), /pelo menos/);
+  assert.match(validateServiceCategories([{ name: 'x'.repeat(41) }]), /40 caracteres/);
 });

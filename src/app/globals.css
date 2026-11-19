@@ -2013,7 +2013,8 @@ td .table-person {
 .field input:not([type='checkbox']),
 .field textarea,
 .field select,
-.editor-form > select {
+.editor-form > select,
+.category-row > input {
   width: 100%;
   border: 1px solid #e1e9d7;
   border-radius: 6px;
@@ -2037,7 +2038,8 @@ td .table-person {
 }
 .field input:focus,
 .field textarea:focus,
-.field select:focus {
+.field select:focus,
+.category-row > input:focus {
   border-color: #a6bb91;
   outline: 2px solid #dce9cf77;
   outline-offset: 1px;
@@ -3282,6 +3284,35 @@ td .table-person {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+.category-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.category-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 12px;
+}
+.category-row > small {
+  font-size: 10px;
+  color: #9ba98a;
+  white-space: nowrap;
+}
+.category-add {
+  align-self: flex-start;
+}
+@media (max-width: 560px) {
+  .category-row {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #edf2e4;
+  }
+  .category-row > input {
+    grid-column: 1 / -1;
+  }
 }
 .booking-summary-extra {
   display: block;
