@@ -18,6 +18,18 @@ export type Business = {
   reminder_hours: number;
   cancellation_hours: number;
   email_reminders: boolean;
+  /** Textos e foto da etapa "Deseja incluir nail art?" (migration 005). Vazio = padrão. */
+  nail_art_step?: Partial<NailArtStep>;
+};
+export type NailArtStep = {
+  eyebrow: string;
+  title: string;
+  yes_label: string;
+  yes_hint: string;
+  no_label: string;
+  no_hint: string;
+  note: string;
+  photo_url: string;
 };
 export type Professional = {
   id: string;

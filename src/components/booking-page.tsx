@@ -24,6 +24,7 @@ import {
   BOOKING_CATEGORIES,
   nailArtLabel,
   nailArtNote,
+  nailArtStep,
   serviceBookingCategory,
   type BookingCategory,
 } from '@/lib/booking-options';
@@ -69,6 +70,7 @@ export function BookingPage({ slug }: { slug: string }) {
         }
       : null
     : remote;
+  const nailStep = nailArtStep(studio?.business.nail_art_step);
   // Nail art não entra na lista: só pode ser incluída como cortesia de outro serviço.
   const categoryServices = (c: BookingCategory) =>
       studio?.services.filter((s) => serviceBookingCategory(s) === c) || [],
@@ -414,12 +416,21 @@ export function BookingPage({ slug }: { slug: string }) {
               )}
               {step === 1 && pick === 'nailArt' && service && (
                 <>
-                  <span className="eyebrow">UM DETALHE A MAIS</span>
-                  <h2>Deseja incluir nail art?</h2>
+                  <span className="eyebrow">{nailStep.eyebrow}</span>
+                  <h2>{nailStep.title}</h2>
                   <p className="booking-subtitle">
                     {category} · {service.name} · {currency(service.price)}
                   </p>
-                  <div className="nail-art-picker" role="radiogroup" aria-label="Incluir nail art">
+                  {nailStep.photo_url && (
+                    <img
+                      className="nail-art-photo"
+                      src={nailStep.photo_url}
+                      alt="Exemplo de nail art do studio"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  )}
+                  <div className="nail-art-picker" role="radiogroup" aria-label={nailStep.title}>
                     {[true, false].map((option) => (
                       <button
                         key={String(option)}
@@ -429,15 +440,15 @@ export function BookingPage({ slug }: { slug: string }) {
                         className={nailArt === option ? 'selected' : ''}
                         onClick={() => setNailArt(option)}
                       >
-                        <strong>{option ? 'Sim' : 'Não'}</strong>
-                        <small>{option ? 'Quero uma decoração' : 'Somente o serviço'}</small>
+                        <strong>{option ? nailStep.yes_label : nailStep.no_label}</strong>
+                        <small>{option ? nailStep.yes_hint : nailStep.no_hint}</small>
                         {nailArt === option && <Check size={15} />}
                       </button>
                     ))}
                   </div>
                   <p className="form-note nail-art-note">
-                    <Heart size={13} />A nail art é uma cortesia do studio e não altera o valor do
-                    serviço.
+                    <Heart size={13} />
+                    {nailStep.note}
                   </p>
                   <div className="booking-next">
                     <span>

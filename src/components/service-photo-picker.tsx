@@ -11,8 +11,22 @@ type Props = {
   disabled: boolean;
   onChange: (url: string, file: File | null) => void;
   onError: (message: string) => void;
+  /** Textos opcionais para reutilizar o seletor fora do cadastro de serviços. */
+  label?: string;
+  emptyTitle?: string;
+  description?: string;
 };
-export function ServicePhotoPicker({ url, file, demo, disabled, onChange, onError }: Props) {
+export function ServicePhotoPicker({
+  url,
+  file,
+  demo,
+  disabled,
+  onChange,
+  onError,
+  label = 'Foto do serviço',
+  emptyTitle = 'Mostre como fica esse cuidado',
+  description = 'A foto aparece no seu painel e no menu que a cliente vê ao agendar.',
+}: Props) {
   const input = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState(url);
   useEffect(() => {
@@ -28,7 +42,7 @@ export function ServicePhotoPicker({ url, file, demo, disabled, onChange, onErro
     <div className="service-photo-field">
       <div className="field-heading">
         <span>
-          Foto do serviço <small>opcional</small>
+          {label} <small>opcional</small>
         </span>
         {(url || file) && (
           <button
@@ -56,8 +70,8 @@ export function ServicePhotoPicker({ url, file, demo, disabled, onChange, onErro
           </div>
         )}
         <div>
-          <strong>{preview ? 'Sua criação em destaque' : 'Mostre como fica esse cuidado'}</strong>
-          <p>A foto aparece no seu painel e no menu que a cliente vê ao agendar.</p>
+          <strong>{preview ? 'Sua criação em destaque' : emptyTitle}</strong>
+          <p>{description}</p>
           <button
             type="button"
             className="button secondary small-button"
@@ -74,7 +88,7 @@ export function ServicePhotoPicker({ url, file, demo, disabled, onChange, onErro
         ref={input}
         className="sr-only"
         type="file"
-        aria-label="Foto do serviço"
+        aria-label={label}
         accept="image/jpeg,image/png,image/webp"
         disabled={disabled}
         onChange={(event) => {
@@ -95,7 +109,7 @@ export function ServicePhotoPicker({ url, file, demo, disabled, onChange, onErro
         <Field label="Link da foto (HTTPS)">
           <input
             type="url"
-            aria-label="Link da foto do serviço"
+            aria-label={`Link da ${label.toLowerCase()}`}
             value={file ? '' : url.startsWith('data:') ? '' : url}
             disabled={disabled || Boolean(file)}
             placeholder="https://…/foto-do-servico.jpg"

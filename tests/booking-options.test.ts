@@ -2,9 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createDemoData } from '../src/lib/demo';
 import {
+  NAIL_ART_STEP_DEFAULTS,
   isNailArtService,
   nailArtLabel,
   nailArtNote,
+  nailArtStep,
   serviceBookingCategory,
 } from '../src/lib/booking-options';
 
@@ -47,4 +49,31 @@ test('nail art é registrada como Sim (cortesia) ou não solicitada', () => {
   assert.equal(nailArtLabel(false), 'Não');
   assert.equal(nailArtNote(true), 'Nail art: Sim (cortesia)');
   assert.equal(nailArtNote(false), 'Nail art: Não solicitada');
+});
+
+test('etapa de nail art usa textos do studio e volta ao padrão quando o campo fica vazio', () => {
+  assert.deepEqual(nailArtStep(undefined), NAIL_ART_STEP_DEFAULTS);
+  const step = nailArtStep({
+    title: '  Quer uma arte nas unhas?  ',
+    yes_hint: 'Escolho na hora',
+    no_label: '   ',
+    photo_url: 'https://example.com/arte.jpg',
+  });
+  assert.equal(step.title, 'Quer uma arte nas unhas?');
+  assert.equal(step.yes_hint, 'Escolho na hora');
+  assert.equal(step.no_label, NAIL_ART_STEP_DEFAULTS.no_label);
+  assert.equal(step.note, NAIL_ART_STEP_DEFAULTS.note);
+  assert.equal(step.photo_url, 'https://example.com/arte.jpg');
+  assert.equal(nailArtStep({ title: 'x'.repeat(500) }).title.length, 90);
+});
+
+test('foto da etapa aceita HTTPS ou imagem embutida inteira e recusa links inseguros', () => {
+  const embedded = `data:image/jpeg;base64,${'A'.repeat(5000)}`;
+  assert.equal(nailArtStep({ photo_url: embedded }).photo_url, embedded);
+  for (const unsafe of [
+    'javascript:alert(1)',
+    'http://example.com/a.jpg',
+    'data:text/html;base64,AA',
+  ])
+    assert.equal(nailArtStep({ photo_url: unsafe }).photo_url, '');
 });

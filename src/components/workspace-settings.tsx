@@ -34,6 +34,7 @@ import {
 import type { OpenEditor } from './workspace';
 import { getSupabase } from '@/lib/supabase/client';
 import { ServicePhoto } from './service-photo';
+import { NailArtStepEditor } from './nail-art-step-editor';
 import { minutes, slugify, uid } from '@/lib/utils';
 
 export function WebsitePage({ onEditor }: { onEditor: OpenEditor }) {
@@ -187,6 +188,7 @@ export function WebsitePage({ onEditor }: { onEditor: OpenEditor }) {
               Editar informações do studio
             </Link>
           </section>
+          <NailArtStepEditor />
           <section className="panel padded">
             <SectionHead
               title="Seu trabalho, em detalhes"

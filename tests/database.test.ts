@@ -349,3 +349,33 @@ test('migration 004 grava a nail art como cortesia e bloqueia reserva somente de
     Number(await scalar('select price from public.services where id=$1', [service])),
   );
 });
+
+test('migration 005 publica os textos e a foto da etapa de nail art com validação', async () => {
+  await db.exec('reset role');
+  const migration = await readFile(
+    path.join(process.cwd(), 'supabase/migrations/005_nail_art_step.sql'),
+    'utf8',
+  );
+  await db.exec(migration);
+  await db.exec(migration);
+  await asOwner();
+  const step = { title: 'Quer nail art?', photo_url: 'https://example.com/arte.jpg' };
+  await db.query('update public.businesses set nail_art_step=$1::jsonb where id=$2', [
+    JSON.stringify(step),
+    studio,
+  ]);
+  await assert.rejects(
+    db.query('update public.businesses set nail_art_step=$1::jsonb where id=$2', [
+      JSON.stringify({ photo_url: 'javascript:alert(1)' }),
+      studio,
+    ]),
+    { code: '23514' },
+  );
+  await db.exec("reset role;select set_config('request.jwt.claim.sub','',false);set role anon;");
+  const publicData = await scalar<{ business: { nail_art_step: unknown; owner_id?: string } }>(
+    "select public.get_public_studio('alongamentoscaratinga')",
+  );
+  assert.deepEqual(publicData.business.nail_art_step, step);
+  assert.equal(publicData.business.owner_id, undefined);
+  await asOwner();
+});
