@@ -12,6 +12,7 @@ const schema = z.object({
   phone: z.string().regex(/^\d{10,11}$/),
   email: z.union([z.email().max(254), z.literal('')]),
   nail_art: z.boolean().default(false),
+  package_id: z.uuid().optional(),
   website: z.literal('').optional(),
 });
 export async function POST(request: Request) {
@@ -43,14 +44,24 @@ export async function POST(request: Request) {
       p_phone: input.phone,
       p_email: input.email,
     };
-    let { data, error } = await supabase.rpc('book_appointment', {
-      ...args,
-      p_nail_art: input.nail_art,
-    });
-    // Banco sem a migration 004: mantém a reserva funcionando sem gravar a nail art.
-    if (error?.code === 'PGRST202') {
-      console.warn('book_appointment sem p_nail_art: execute a migration 004_nail_art_booking.');
-      ({ data, error } = await supabase.rpc('book_appointment', args));
+    // Da assinatura mais nova para a mais antiga: se o banco ainda não tem a migration
+    // (PGRST202), a reserva continua funcionando sem gravar pacote (007) / nail art (004).
+    const attempts: [Record<string, unknown>, string][] = [
+      ...(input.package_id
+        ? [
+            [
+              { ...args, p_nail_art: input.nail_art, p_package: input.package_id },
+              '007_public_packages',
+            ] as [Record<string, unknown>, string],
+          ]
+        : []),
+      [{ ...args, p_nail_art: input.nail_art }, '004_nail_art_booking'],
+      [args, ''],
+    ];
+    let { data, error } = await supabase.rpc('book_appointment', attempts[0][0]);
+    for (let i = 1; error?.code === 'PGRST202' && i < attempts.length; i++) {
+      console.warn(`book_appointment: execute a migration ${attempts[i - 1][1]}.`);
+      ({ data, error } = await supabase.rpc('book_appointment', attempts[i][0]));
     }
     if (error)
       return NextResponse.json(

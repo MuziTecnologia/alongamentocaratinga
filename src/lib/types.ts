@@ -129,6 +129,12 @@ export type StudioData = { business: Business } & { [K in TableName]: TableMap[K
 export type PublicStudio = {
   business: Omit<Business, 'owner_id' | 'email_reminders'>;
   services: Service[];
+  /** Pacotes ativos oferecidos no agendamento (migration 007; ausente antes dela). */
+  packages?: PublicPackage[];
   professionals: Professional[];
   gallery: GalleryImage[];
 };
+export type PublicPackage = Pick<
+  Package,
+  'id' | 'name' | 'service_id' | 'sessions' | 'price' | 'validity_days'
+>;

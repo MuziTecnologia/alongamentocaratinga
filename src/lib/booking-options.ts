@@ -82,6 +82,10 @@ export function nailArtStep(custom?: Partial<NailArtStep> | null): NailArtStep {
 
 export const nailArtLabel = (nailArt: boolean) => (nailArt ? 'Sim (cortesia)' : 'Não');
 
+/** Complemento das observações quando a cliente escolhe um pacote (mesmo texto do banco). */
+export const packageNote = (pack: { name: string; sessions: number; price: number }) =>
+  ` · Pacote: ${pack.name} (${pack.sessions} sessões · R$ ${Number(pack.price).toFixed(2).replace('.', ',')})`;
+
 /** Texto gravado nas observações do agendamento (mesmo texto usado no banco). */
 export const nailArtNote = (nailArt: boolean) =>
   nailArt ? 'Nail art: Sim (cortesia)' : 'Nail art: Não solicitada';

@@ -195,3 +195,26 @@ test('dashboard mostra ações por cliente somente na próxima hora e oferece co
   studio.appointments = [];
   assert(render().includes('Nenhum atendimento na próxima hora'));
 });
+
+test('mensagem com pacote informa o pacote, a 1ª sessão e o valor do pacote', () => {
+  const url = new URL(
+    clientConfirmationLink({
+      ...details,
+      category: 'Pacotes',
+      packageLabel: 'Alongamento · 4 sessões',
+      price: 280,
+      nailArt: false,
+      date: '2026-11-20',
+      time: '10:00',
+    }),
+  );
+  const message = url.searchParams.get('text')!;
+  for (const text of [
+    '*Categoria:* Pacotes',
+    '*Pacote:* Alongamento · 4 sessões',
+    '*Serviço:* Alongamento (1ª sessão)',
+    '*Valor:* R$ 280,00 (pacote)',
+    '*Nail art:* Não',
+  ])
+    assert(message.includes(text), text);
+});

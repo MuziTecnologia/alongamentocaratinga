@@ -10,7 +10,7 @@ import {
   MessageCircle,
   UserRound,
 } from 'lucide-react';
-import type { Service } from '@/lib/types';
+import type { PublicPackage, Service } from '@/lib/types';
 import { currency, dateLabel } from '@/lib/utils';
 import { nailArtLabel } from '@/lib/booking-options';
 import { clientConfirmationLink } from '@/lib/whatsapp-confirmations';
@@ -25,6 +25,8 @@ export type BookingConfirmationProps = {
   service: Service;
   category?: string;
   nailArt?: boolean;
+  /** Pacote escolhido no agendamento; a reserva é a primeira sessão dele. */
+  pack?: Pick<PublicPackage, 'name' | 'sessions' | 'price'>;
   professionalName: string;
   onBookAgain: () => void;
 };
@@ -37,9 +39,11 @@ export function BookingConfirmation({
   service,
   category = '',
   nailArt = false,
+  pack,
   professionalName,
   onBookAgain,
 }: BookingConfirmationProps) {
+  const packageLabel = pack ? `${pack.name} · ${pack.sessions} sessões` : '';
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     heading.current?.focus({ preventScroll: true });
@@ -111,12 +115,14 @@ export function BookingConfirmation({
               Com {professionalName}
             </span>
             <span className="confirmation-extras">
-              {category && `${category} · `}Nail art: {nailArtLabel(nailArt)}
+              {category && `${category} · `}
+              {packageLabel && `Pacote ${packageLabel} (1ª sessão) · `}Nail art:{' '}
+              {nailArtLabel(nailArt)}
             </span>
           </div>
           <div className="confirmation-price">
-            <strong>{currency(service.price)}</strong>
-            <span>no atendimento</span>
+            <strong>{currency(pack ? pack.price : service.price)}</strong>
+            <span>{pack ? 'pacote' : 'no atendimento'}</span>
           </div>
         </div>
       </div>
@@ -133,7 +139,8 @@ export function BookingConfirmation({
           serviceName: service.name,
           professionalName,
           category,
-          price: service.price,
+          price: pack ? pack.price : service.price,
+          packageLabel,
           nailArt,
         })}
         className="button primary confirmation-whatsapp"

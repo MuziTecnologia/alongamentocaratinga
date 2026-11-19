@@ -14,6 +14,8 @@ type BookingDetails = {
   category?: string;
   price?: number;
   nailArt?: boolean;
+  /** Pacote escolhido (ex.: "Alongamento · 4 sessões"); o valor informado é o do pacote. */
+  packageLabel?: string;
 };
 
 const singleLine = (text: string) => text.replace(/\s+/g, ' ').trim();
@@ -23,8 +25,10 @@ function appointmentSummary(details: BookingDetails, date: string, time: string)
   const address = singleLine(details.address).replace(/[\s,;:.!?]+$/g, '');
   return [
     details.category && `*Categoria:* ${singleLine(details.category)}`,
-    `*Serviço:* ${singleLine(details.serviceName)}`,
-    details.price !== undefined && `*Valor:* ${singleLine(currency(details.price))}`,
+    details.packageLabel && `*Pacote:* ${singleLine(details.packageLabel)}`,
+    `*Serviço:* ${singleLine(details.serviceName)}${details.packageLabel ? ' (1ª sessão)' : ''}`,
+    details.price !== undefined &&
+      `*Valor:* ${singleLine(currency(details.price))}${details.packageLabel ? ' (pacote)' : ''}`,
     details.nailArt !== undefined && `*Nail art:* ${nailArtLabel(details.nailArt)}`,
     `*Data:* ${dateLabel(date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`,
     `*Horário:* ${time} (horário de Brasília)`,

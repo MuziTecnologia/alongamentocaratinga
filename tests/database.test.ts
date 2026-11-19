@@ -441,3 +441,59 @@ test('migration 006: categoria editada persiste e define o que pode ser reservad
   );
   await asOwner();
 });
+
+test('migration 007 publica pacotes ativos e registra o pacote na reserva', async () => {
+  await db.exec('reset role');
+  const migration = await readFile(
+    path.join(process.cwd(), 'supabase/migrations/007_public_packages.sql'),
+    'utf8',
+  );
+  await db.exec(migration);
+  await db.exec(migration);
+  await asOwner();
+  const svc = await scalar(
+    "insert into public.services(business_id,name,category,duration,price) values($1,'Alongamento pacote','Aplicação',60,80) returning id",
+    [studio],
+  );
+  const other = await scalar(
+    "insert into public.services(business_id,name,category,duration,price) values($1,'Blindagem pacote','Aplicação',60,63) returning id",
+    [studio],
+  );
+  const pkg = await scalar(
+    "insert into public.packages(business_id,name,service_id,sessions,price,validity_days) values($1,'Alongamento',$2,4,280,120) returning id",
+    [studio, svc],
+  );
+  const inactive = await scalar(
+    "insert into public.packages(business_id,name,service_id,sessions,price,validity_days,active) values($1,'Pacote inativo',$2,4,200,120,false) returning id",
+    [studio, svc],
+  );
+  await db.exec("reset role;select set_config('request.jwt.claim.sub','',false);set role anon;");
+  const publicData = await scalar<{ packages: { id: string; price: number; sessions: number }[] }>(
+    "select public.get_public_studio('alongamentoscaratinga')",
+  );
+  const ids = publicData.packages.map((p) => p.id);
+  assert(ids.includes(pkg));
+  assert(!ids.includes(inactive));
+  const day = addDays(date, 3);
+  const booked = await scalar(
+    "select public.book_appointment('alongamentoscaratinga',$1,$2,$3,'09:00','Cliente Pacote','33986666666','',true,$4)",
+    [svc, pro, day, pkg],
+  );
+  // Pacote de outro serviço ou inativo é recusado.
+  for (const [service, pack] of [
+    [other, pkg],
+    [svc, inactive],
+  ])
+    await assert.rejects(
+      db.query(
+        "select public.book_appointment('alongamentoscaratinga',$1,$2,$3,'14:00','Cliente Pacote 2','33987777777','',false,$4)",
+        [service, pro, day, pack],
+      ),
+      /pacote não está disponível/,
+    );
+  await asOwner();
+  assert.equal(
+    await scalar('select notes from public.appointments where id=$1', [booked]),
+    'Nail art: Sim (cortesia) · Pacote: Alongamento (4 sessões · R$ 280,00)',
+  );
+});

@@ -13,6 +13,7 @@ import {
   Instagram,
   MapPin,
   MessageCircle,
+  Gift,
   RefreshCw,
   ShieldCheck,
   Sparkles,
@@ -25,6 +26,7 @@ import {
   nailArtLabel,
   nailArtNote,
   nailArtStep,
+  packageNote,
   serviceBookingCategory,
   type BookingCategory,
 } from '@/lib/booking-options';
@@ -42,6 +44,7 @@ import { useStudio } from './studio-provider';
 import { Avatar, Brand, Empty, Field, formValues, value } from './ui';
 import { ServicePhoto } from './service-photo';
 import { BookingConfirmation } from './booking-confirmation';
+type FlowCategory = BookingCategory | 'Pacotes';
 export function BookingPage({ slug }: { slug: string }) {
   const { data, ready, demo, save, notify } = useStudio();
   const [remote, setRemote] = useState<PublicStudio | null>(null),
@@ -58,13 +61,15 @@ export function BookingPage({ slug }: { slug: string }) {
     [customerName, setCustomerName] = useState(''),
     // Etapa 1 em três momentos: categoria → serviço → nail art (cortesia).
     [pick, setPick] = useState<'category' | 'service' | 'nailArt'>('category'),
-    [category, setCategory] = useState<BookingCategory | ''>(''),
+    [category, setCategory] = useState<FlowCategory | ''>(''),
+    [packageId, setPackageId] = useState(''),
     [nailArt, setNailArt] = useState(false);
   const studio: PublicStudio | null = demo
     ? ready && data.business.slug === slug
       ? {
           business: data.business,
           services: data.services.filter((s) => s.active),
+          packages: data.packages.filter((p) => p.active),
           professionals: data.professionals.filter((p) => p.active),
           gallery: data.gallery,
         }
@@ -74,19 +79,40 @@ export function BookingPage({ slug }: { slug: string }) {
   // Nail art não entra na lista: só pode ser incluída como cortesia de outro serviço.
   const categoryServices = (c: BookingCategory) =>
       studio?.services.filter((s) => serviceBookingCategory(s) === c) || [],
-    services = category ? categoryServices(category) : [],
-    service = services.find((s) => s.id === serviceId),
+    // Pacotes cujo serviço pode ser agendado (ativo e que não seja Nail Art).
+    packages = (studio?.packages || []).filter((p) => {
+      const s = studio?.services.find((x) => x.id === p.service_id);
+      return s && serviceBookingCategory(s) !== null;
+    }),
+    pack = category === 'Pacotes' ? packages.find((p) => p.id === packageId) : undefined,
+    services = category && category !== 'Pacotes' ? categoryServices(category) : [],
+    service =
+      category === 'Pacotes'
+        ? pack && studio?.services.find((s) => s.id === pack.service_id)
+        : services.find((s) => s.id === serviceId),
+    // Valor exibido: preço do pacote ou do serviço.
+    price = pack ? pack.price : service?.price || 0,
+    packageLabel = pack ? `${pack.name} · ${pack.sessions} sessões` : '',
     professional = studio?.professionals.find((p) => p.id === professionalId);
-  function chooseCategory(next: BookingCategory) {
+  function chooseCategory(next: FlowCategory) {
     if (next !== category) {
       setCategory(next);
-      if (!categoryServices(next).some((s) => s.id === serviceId)) {
+      setPackageId('');
+      if (
+        next === 'Pacotes' ||
+        category === 'Pacotes' ||
+        !categoryServices(next).some((s) => s.id === serviceId)
+      ) {
         setServiceId('');
         setTime('');
       }
     }
     setPick('service');
     setError('');
+  }
+  function choosePackage(id: string, serviceId: string) {
+    setPackageId(id);
+    chooseService(serviceId);
   }
   function chooseService(id: string) {
     setServiceId(id);
@@ -184,6 +210,7 @@ export function BookingPage({ slug }: { slug: string }) {
             phone,
             email,
             nail_art: nailArt,
+            ...(pack ? { package_id: pack.id } : {}),
             website: value(form, 'website'),
           }),
         });
@@ -222,7 +249,7 @@ export function BookingPage({ slug }: { slug: string }) {
           payment_method: '',
           kind: 'booking',
           source: 'link',
-          notes: nailArtNote(nailArt),
+          notes: nailArtNote(nailArt) + (pack ? packageNote(pack) : ''),
           customer_package_id: null,
           reminder_sent_at: null,
         };
@@ -358,14 +385,17 @@ export function BookingPage({ slug }: { slug: string }) {
                   <span className="eyebrow">VAMOS COMEÇAR PELO QUE VOCÊ AMA</span>
                   <h2>Qual será o seu cuidado?</h2>
                   <p className="booking-subtitle">
-                    Escolha entre aplicação e manutenção para ver os serviços.
+                    {packages.length
+                      ? 'Escolha entre aplicação, manutenção ou um pacote.'
+                      : 'Escolha entre aplicação e manutenção para ver os serviços.'}
                   </p>
                   {!b.booking_enabled ? (
                     <Empty
                       title="Uma pequena pausa por aqui"
                       text="O agendamento online está temporariamente fechado. Fale com o studio pelo WhatsApp."
                     />
-                  ) : BOOKING_CATEGORIES.some((c) => categoryServices(c).length) ? (
+                  ) : BOOKING_CATEGORIES.some((c) => categoryServices(c).length) ||
+                    packages.length ? (
                     <div className="booking-services">
                       {BOOKING_CATEGORIES.filter((c) => categoryServices(c).length).map((c) => {
                         const list = categoryServices(c);
@@ -401,6 +431,32 @@ export function BookingPage({ slug }: { slug: string }) {
                           </button>
                         );
                       })}
+                      {packages.length > 0 && (
+                        <button
+                          className={`booking-service ${category === 'Pacotes' ? 'selected' : ''}`}
+                          onClick={() => chooseCategory('Pacotes')}
+                        >
+                          <span
+                            className="service-photo booking-service-icon"
+                            style={{ background: '#e8dfec' }}
+                          >
+                            <Gift size={21} strokeWidth={1.2} aria-hidden="true" />
+                          </span>
+                          <div>
+                            <h3>Pacotes</h3>
+                            <p>{packages.map((p) => p.name).join(' · ')}</p>
+                            <small>
+                              {packages.length} {packages.length === 1 ? 'pacote' : 'pacotes'}
+                            </small>
+                          </div>
+                          <div>
+                            <strong>
+                              a partir de {currency(Math.min(...packages.map((p) => p.price)))}
+                            </strong>
+                            <ChevronRight size={17} />
+                          </div>
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <Empty
@@ -419,7 +475,7 @@ export function BookingPage({ slug }: { slug: string }) {
                   <span className="eyebrow">{nailStep.eyebrow}</span>
                   <h2>{nailStep.title}</h2>
                   <p className="booking-subtitle">
-                    {category} · {service.name} · {currency(service.price)}
+                    {category} · {packageLabel || service.name} · {currency(price)}
                   </p>
                   {nailStep.photo_url && (
                     <img
@@ -452,7 +508,7 @@ export function BookingPage({ slug }: { slug: string }) {
                   </p>
                   <div className="booking-next">
                     <span>
-                      {currency(service.price)} · Nail art: {nailArtLabel(nailArt)}
+                      {currency(price)} · Nail art: {nailArtLabel(nailArt)}
                     </span>
                     <button
                       className="button primary"
@@ -476,8 +532,44 @@ export function BookingPage({ slug }: { slug: string }) {
                 <>
                   <span className="eyebrow">{category.toUpperCase()}</span>
                   <h2>Qual será o seu cuidado?</h2>
-                  <p className="booking-subtitle">Escolha o serviço para reservar seu momento.</p>
-                  {services.length ? (
+                  <p className="booking-subtitle">
+                    {category === 'Pacotes'
+                      ? 'Escolha o pacote e agende a primeira sessão.'
+                      : 'Escolha o serviço para reservar seu momento.'}
+                  </p>
+                  {category === 'Pacotes' ? (
+                    <div className="booking-services">
+                      {packages.map((p) => {
+                        const s = studio.services.find((x) => x.id === p.service_id)!;
+                        return (
+                          <button
+                            key={p.id}
+                            className={`booking-service ${p.id === packageId ? 'selected' : ''}`}
+                            onClick={() => choosePackage(p.id, s.id)}
+                          >
+                            <ServicePhoto
+                              service={s}
+                              className={`booking-service-icon ${s.photo_url ? 'with-photo' : ''}`}
+                            />
+                            <div>
+                              <h3>{p.name}</h3>
+                              <p>
+                                {s.name} · {p.sessions} sessões
+                              </p>
+                              <small>
+                                <Clock3 size={12} />
+                                {s.duration} min por sessão · válido por {p.validity_days} dias
+                              </small>
+                            </div>
+                            <div>
+                              <strong>{currency(p.price)}</strong>
+                              <ChevronRight size={17} />
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : services.length ? (
                     <div className="booking-services">
                       {services.map((s) => (
                         <button
@@ -521,8 +613,9 @@ export function BookingPage({ slug }: { slug: string }) {
                   <span className="eyebrow">UMA PAUSA NA ROTINA</span>
                   <h2>Quando é o seu momento?</h2>
                   <p className="booking-subtitle">
-                    {category} · {service?.name} · {service?.duration} min ·{' '}
-                    {currency(service?.price || 0)} · Nail art: {nailArtLabel(nailArt)}
+                    {category} · {packageLabel ? `${packageLabel} · 1ª sessão: ` : ''}
+                    {service?.name} · {service?.duration} min · {currency(price)} · Nail art:{' '}
+                    {nailArtLabel(nailArt)}
                   </p>
                   <div className="field">
                     <span>Quem vai cuidar de você?</span>
@@ -635,10 +728,11 @@ export function BookingPage({ slug }: { slug: string }) {
                         {professional?.name} · {service?.duration} min
                       </small>
                       <small className="booking-summary-extra">
-                        {category} · Nail art: {nailArtLabel(nailArt)}
+                        {category} · {packageLabel && `Pacote ${packageLabel} · `}Nail art:{' '}
+                        {nailArtLabel(nailArt)}
                       </small>
                     </div>
-                    <strong>{currency(service?.price || 0)}</strong>
+                    <strong>{currency(price)}</strong>
                   </div>
                   <form className="booking-form" onSubmit={book}>
                     <Field label="Seu nome completo">
@@ -720,12 +814,14 @@ export function BookingPage({ slug }: { slug: string }) {
               service={service!}
               category={category}
               nailArt={nailArt}
+              pack={pack}
               professionalName={professional?.name || ''}
               onBookAgain={() => {
                 setStep(1);
                 setPick('category');
                 setCategory('');
                 setServiceId('');
+                setPackageId('');
                 setNailArt(false);
                 setTime('');
                 setError('');

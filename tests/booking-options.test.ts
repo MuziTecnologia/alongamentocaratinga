@@ -8,6 +8,7 @@ import {
   nailArtLabel,
   nailArtNote,
   nailArtStep,
+  packageNote,
   serviceBookingCategory,
   serviceCategory,
 } from '../src/lib/booking-options';
@@ -94,4 +95,11 @@ test('categoria escolhida no cadastro prevalece; valores antigos recebem sugest�
   assert.equal(serviceCategory(svc('Manutenção - Blindagem')), 'Manutenção');
   assert.equal(serviceCategory(svc('Nail Art (Cortesia exclusiva)')), 'Nail Art');
   assert.equal(explicitServiceCategory(svc('x', 'nail art')), 'Nail Art');
+});
+
+test('observação do pacote no modo demo usa o mesmo texto gravado pelo banco', () => {
+  assert.equal(
+    nailArtNote(false) + packageNote({ name: 'Alongamento', sessions: 4, price: 280 }),
+    'Nail art: Não solicitada · Pacote: Alongamento (4 sessões · R$ 280,00)',
+  );
 });
