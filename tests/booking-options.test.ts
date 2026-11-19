@@ -3,11 +3,13 @@ import assert from 'node:assert/strict';
 import { createDemoData } from '../src/lib/demo';
 import {
   NAIL_ART_STEP_DEFAULTS,
+  explicitServiceCategory,
   isNailArtService,
   nailArtLabel,
   nailArtNote,
   nailArtStep,
   serviceBookingCategory,
+  serviceCategory,
 } from '../src/lib/booking-options';
 
 const svc = (name: string, category = 'Cuidados') => ({ name, category });
@@ -76,4 +78,20 @@ test('foto da etapa aceita HTTPS ou imagem embutida inteira e recusa links inseg
     'data:text/html;base64,AA',
   ])
     assert.equal(nailArtStep({ photo_url: unsafe }).photo_url, '');
+});
+
+test('categoria escolhida no cadastro prevalece; valores antigos recebem sugestão pelo nome', () => {
+  assert.equal(serviceCategory(svc('Banho de gel', 'Aplicação')), 'Aplicação');
+  assert.equal(serviceCategory(svc('Manutenção de banho de gel', 'Manutenção')), 'Manutenção');
+  assert.equal(serviceCategory(svc('Nail Art personalizada', 'Nail Art')), 'Nail Art');
+  // Escolha explícita vence o nome: o studio decide.
+  assert.equal(serviceCategory(svc('Nail art francesinha', 'Aplicação')), 'Aplicação');
+  assert.equal(serviceBookingCategory(svc('Nail art francesinha', 'Aplicação')), 'Aplicação');
+  assert.equal(serviceCategory(svc('Blindagem', 'Nail Art')), 'Nail Art');
+  assert.equal(serviceBookingCategory(svc('Blindagem', 'Nail Art')), null);
+  // Categoria antiga ("Cuidados"): sugestão pelo nome.
+  assert.equal(explicitServiceCategory(svc('Blindagem')), null);
+  assert.equal(serviceCategory(svc('Manutenção - Blindagem')), 'Manutenção');
+  assert.equal(serviceCategory(svc('Nail Art (Cortesia exclusiva)')), 'Nail Art');
+  assert.equal(explicitServiceCategory(svc('x', 'nail art')), 'Nail Art');
 });

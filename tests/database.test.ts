@@ -379,3 +379,65 @@ test('migration 005 publica os textos e a foto da etapa de nail art com validaç
   assert.equal(publicData.business.owner_id, undefined);
   await asOwner();
 });
+
+test('migration 006: categoria editada persiste e define o que pode ser reservado', async () => {
+  await db.exec('reset role');
+  const migration = await readFile(
+    path.join(process.cwd(), 'supabase/migrations/006_service_categories.sql'),
+    'utf8',
+  );
+  await db.exec(migration);
+  await db.exec(migration);
+  await asOwner();
+  const created = await scalar(
+    "insert into public.services(business_id,name,category,duration,price) values($1,'Banho de gel teste','Aplicação',60,70) returning id",
+    [studio],
+  );
+  // Edição: nome e categoria mudam só neste serviço.
+  const before = await db.query<{ id: string; name: string; category: string }>(
+    'select id,name,category from public.services where id<>$1 order by id',
+    [created],
+  );
+  await db.query('update public.services set name=$1,category=$2 where id=$3', [
+    'Manutenção de banho de gel teste',
+    'Manutenção',
+    created,
+  ]);
+  assert.deepEqual(
+    (await db.query('select name,category,price from public.services where id=$1', [created]))
+      .rows[0],
+    { name: 'Manutenção de banho de gel teste', category: 'Manutenção', price: '70.00' },
+  );
+  assert.deepEqual(
+    (
+      await db.query('select id,name,category from public.services where id<>$1 order by id', [
+        created,
+      ])
+    ).rows,
+    before.rows,
+  );
+  const artAsApplication = await scalar(
+    "insert into public.services(business_id,name,category,duration,price) values($1,'Nail art francesinha','Aplicação',60,90) returning id",
+    [studio],
+  );
+  const artCategory = await scalar(
+    "insert into public.services(business_id,name,category,duration,price) values($1,'Arte personalizada','Nail Art',30,0) returning id",
+    [studio],
+  );
+  await db.exec("reset role;select set_config('request.jwt.claim.sub','',false);set role anon;");
+  const day = addDays(date, 2);
+  assert(
+    await scalar(
+      "select public.book_appointment('alongamentoscaratinga',$1,$2,$3,'09:00','Cliente Categoria','33984444444','',false)",
+      [artAsApplication, pro, day],
+    ),
+  );
+  await assert.rejects(
+    db.query(
+      "select public.book_appointment('alongamentoscaratinga',$1,$2,$3,'15:00','Cliente Arte','33985555555','',true)",
+      [artCategory, pro, day],
+    ),
+    /cortesia incluída junto a outro serviço/,
+  );
+  await asOwner();
+});

@@ -113,6 +113,12 @@ export function Modal({
   wide?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  // onClose costuma ser recriado a cada render do painel; guardá-lo em ref evita que o
+  // efeito abaixo rode de novo e devolva o foco ao primeiro campo no meio da edição.
+  const close = useRef(onClose);
+  useEffect(() => {
+    close.current = onClose;
+  }, [onClose]);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     const overflow = document.body.style.overflow;
@@ -120,7 +126,7 @@ export function Modal({
     const firstField = ref.current?.querySelector<HTMLElement>('input,select,textarea');
     (firstField || ref.current?.querySelector<HTMLElement>('button'))?.focus();
     const handle = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') close.current();
       if (event.key === 'Tab') {
         const els = ref.current?.querySelectorAll<HTMLElement>(
           'button:not(:disabled),[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex="0"]',
@@ -141,7 +147,7 @@ export function Modal({
       document.removeEventListener('keydown', handle);
       previous?.focus();
     };
-  }, [onClose]);
+  }, []);
   return (
     <div
       className="modal-backdrop"

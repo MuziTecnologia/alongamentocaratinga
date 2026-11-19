@@ -16,6 +16,11 @@ import { Field, FormActions, Modal, formValues, numberValue, value } from './ui'
 import { useStudio } from './studio-provider';
 import { ServicePhotoPicker } from './service-photo-picker';
 import { uploadStudioImage, validatePhotoUrl } from '@/lib/studio-images';
+import {
+  SERVICE_CATEGORIES,
+  explicitServiceCategory,
+  serviceCategory,
+} from '@/lib/booking-options';
 export type EditorKind =
   | 'clients'
   | 'services'
@@ -293,21 +298,27 @@ export function EntityEditor({
                   defaultValue={text('duration', '60')}
                 />
               </Field>
-              <Field label="Categoria">
-                <input
+              <Field
+                label="Categoria"
+                hint={
+                  row.id && !explicitServiceCategory({ category: text('category') })
+                    ? `Antes: "${text('category')}". Confira a categoria e salve.`
+                    : undefined
+                }
+              >
+                <select
                   name="category"
                   required
-                  defaultValue={text('category', 'Cuidados')}
-                  list="categories"
-                />
-                <datalist id="categories">
-                  <option>Aplicação</option>
-                  <option>Manutenção</option>
-                  <option>Alongamento</option>
-                  <option>Esmaltação</option>
-                  <option>Cuidados</option>
-                  <option>Nail art</option>
-                </datalist>
+                  defaultValue={
+                    row.id
+                      ? serviceCategory({ name: text('name'), category: text('category') })
+                      : 'Aplicação'
+                  }
+                >
+                  {SERVICE_CATEGORIES.map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
+                </select>
               </Field>
               {colorField}
             </div>
@@ -541,6 +552,7 @@ export function EntityEditor({
         <FormActions
           pending={photoUploading}
           onClose={onClose}
+          label={row.id ? 'Salvar alterações' : 'Salvar'}
           extra={
             row.id && (
               <button

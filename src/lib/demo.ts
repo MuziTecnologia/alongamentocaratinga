@@ -35,7 +35,7 @@ export function createDemoData(): StudioData {
   const services = [
     {
       name: 'Alongamento em gel',
-      category: 'Alongamento',
+      category: 'Aplicação',
       duration: 120,
       price: 160,
       color: '#dbe9d8',
@@ -43,7 +43,7 @@ export function createDemoData(): StudioData {
     },
     {
       name: 'Manutenção em gel',
-      category: 'Alongamento',
+      category: 'Manutenção',
       duration: 90,
       price: 110,
       color: '#eee2cf',
@@ -51,7 +51,7 @@ export function createDemoData(): StudioData {
     },
     {
       name: 'Esmaltação em gel',
-      category: 'Esmaltação',
+      category: 'Aplicação',
       duration: 60,
       price: 70,
       color: '#e8dfec',
@@ -59,7 +59,7 @@ export function createDemoData(): StudioData {
     },
     {
       name: 'Manicure tradicional',
-      category: 'Cuidados',
+      category: 'Aplicação',
       duration: 45,
       price: 35,
       color: '#dce9e8',
@@ -67,7 +67,7 @@ export function createDemoData(): StudioData {
     },
     {
       name: 'Pedicure + spa dos pés',
-      category: 'Cuidados',
+      category: 'Aplicação',
       duration: 60,
       price: 65,
       color: '#f3dfd6',
@@ -75,7 +75,7 @@ export function createDemoData(): StudioData {
     },
     {
       name: 'Nail art',
-      category: 'Esmaltação',
+      category: 'Nail Art',
       duration: 30,
       price: 30,
       color: '#e7e9cd',

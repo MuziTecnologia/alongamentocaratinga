@@ -24,6 +24,7 @@ import { ServicePhoto } from './service-photo';
 import { AddButton, Avatar, Badge, Empty, Modal, PageHeading, SectionHead, Stat } from './ui';
 import { AppointmentList, type OpenEditor } from './workspace';
 import type { Appointment, Client } from '@/lib/types';
+import { SERVICE_CATEGORIES, serviceCategory } from '@/lib/booking-options';
 import {
   addDays,
   currency,
@@ -454,10 +455,15 @@ export function ServicesPage({ onEditor }: { onEditor: OpenEditor }) {
   const { data } = useStudio();
   const [category, setCategory] = useState('all'),
     [query, setQuery] = useState('');
-  const categories = [...new Set(data.services.map((s) => s.category))];
+  // Aplicação, Manutenção e Nail Art sempre aparecem; serviços antigos (ex.: "Cuidados")
+  // ficam na categoria sugerida pelo nome até o studio salvar a categoria escolhida.
+  const categories = SERVICE_CATEGORIES.map((c) => ({
+    name: c,
+    count: data.services.filter((s) => serviceCategory(s) === c).length,
+  }));
   const services = data.services.filter(
     (s) =>
-      (category === 'all' || s.category === category) &&
+      (category === 'all' || serviceCategory(s) === category) &&
       s.name.toLowerCase().includes(query.toLowerCase()),
   );
   return (
@@ -478,11 +484,11 @@ export function ServicesPage({ onEditor }: { onEditor: OpenEditor }) {
           </button>
           {categories.map((c) => (
             <button
-              key={c}
-              className={category === c ? 'selected' : ''}
-              onClick={() => setCategory(c)}
+              key={c.name}
+              className={category === c.name ? 'selected' : ''}
+              onClick={() => setCategory(c.name)}
             >
-              {c}
+              {c.name} <span>{c.count}</span>
             </button>
           ))}
         </div>
@@ -512,7 +518,7 @@ export function ServicesPage({ onEditor }: { onEditor: OpenEditor }) {
                 <MoreHorizontal size={21} />
               </button>
             </div>
-            <span className="eyebrow">{s.category}</span>
+            <span className="eyebrow">{serviceCategory(s)}</span>
             <h2>{s.name}</h2>
             <p>{s.description || 'Um cuidado especial, do seu jeito.'}</p>
             <div className="service-card-footer">

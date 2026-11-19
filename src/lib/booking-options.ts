@@ -1,5 +1,9 @@
 import type { NailArtStep, Service } from './types';
 
+/** Categorias que o studio escolhe no cadastro de cada serviço. */
+export const SERVICE_CATEGORIES = ['Aplicação', 'Manutenção', 'Nail Art'] as const;
+export type ServiceCategory = (typeof SERVICE_CATEGORIES)[number];
+/** Categorias oferecidas como serviço principal no agendamento público. */
 export const BOOKING_CATEGORIES = ['Aplicação', 'Manutenção'] as const;
 export type BookingCategory = (typeof BOOKING_CATEGORIES)[number];
 
@@ -7,27 +11,36 @@ export type BookingCategory = (typeof BOOKING_CATEGORIES)[number];
 const normalize = (text: string) =>
   text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
 
-/** Nail art é cortesia vinculada a um serviço principal; nunca é agendada sozinha. */
-export function isNailArtService(service: Pick<Service, 'name' | 'category'>) {
-  return (
-    /nail ?art|decoracao/.test(normalize(service.name)) ||
-    normalize(service.category) === 'nail art'
-  );
+/** Categoria escolhida no cadastro, quando é uma das três; null para valores antigos. */
+export function explicitServiceCategory(
+  service: Pick<Service, 'category'>,
+): ServiceCategory | null {
+  const category = normalize(service.category || '');
+  return SERVICE_CATEGORIES.find((c) => normalize(c) === category) ?? null;
 }
 
 /**
- * Categoria do agendamento público. Usa a categoria cadastrada quando ela já é
- * "Aplicação" ou "Manutenção"; caso contrário, serviços cujo nome começa com
- * "Manutenção" são manutenção e os demais são aplicação.
+ * Categoria do serviço: a escolhida no cadastro ou, para serviços antigos
+ * (ex.: "Cuidados"), uma sugestão pelo nome — usada só até o studio salvar uma categoria.
  */
+export function serviceCategory(service: Pick<Service, 'name' | 'category'>): ServiceCategory {
+  const explicit = explicitServiceCategory(service);
+  if (explicit) return explicit;
+  const name = normalize(service.name);
+  if (/nail ?art|decoracao/.test(name)) return 'Nail Art';
+  return name.startsWith('manutencao') ? 'Manutenção' : 'Aplicação';
+}
+
+/** Nail art é cortesia vinculada a um serviço principal; nunca é agendada sozinha. */
+export const isNailArtService = (service: Pick<Service, 'name' | 'category'>) =>
+  serviceCategory(service) === 'Nail Art';
+
+/** Categoria no agendamento público; serviços de Nail Art não aparecem como principais. */
 export function serviceBookingCategory(
   service: Pick<Service, 'name' | 'category'>,
 ): BookingCategory | null {
-  if (isNailArtService(service)) return null;
-  const category = normalize(service.category);
-  if (category === 'manutencao') return 'Manutenção';
-  if (category === 'aplicacao') return 'Aplicação';
-  return normalize(service.name).startsWith('manutencao') ? 'Manutenção' : 'Aplicação';
+  const category = serviceCategory(service);
+  return category === 'Nail Art' ? null : category;
 }
 
 /** Textos padrão da etapa de nail art; o studio pode trocá-los no painel (Meu site). */
