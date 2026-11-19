@@ -79,6 +79,25 @@ export function serviceBookingCategory(
 export const bookingCategories = (categories: Categories) =>
   categories.filter((c) => !c.nail_art).map((c) => c.name);
 
+/**
+ * Serviços que precisam mudar ao salvar a lista de categorias: os de categoria excluída
+ * vão para a categoria escolhida; os de categoria renomeada acompanham o novo nome.
+ * Os demais não são tocados.
+ */
+export function servicesToRecategorize<T extends ServiceLike>(
+  services: readonly T[],
+  current: Categories,
+  renamed: ReadonlyMap<string, string>,
+  deleted: ReadonlyMap<string, string>,
+): T[] {
+  return services.flatMap((s) => {
+    const shown = serviceCategory(s, current),
+      saved = explicitServiceCategory(s, current);
+    const target = deleted.get(shown) || (saved ? renamed.get(saved) : undefined);
+    return target && target !== s.category ? [{ ...s, category: target }] : [];
+  });
+}
+
 /** Valida a lista editada no painel; devolve a mensagem de erro ou ''. */
 export function validateServiceCategories(categories: ServiceCategoryDef[]): string {
   const names = categories.map((c) => c.name.trim());

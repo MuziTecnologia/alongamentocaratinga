@@ -14,6 +14,7 @@ import {
   serviceBookingCategory,
   serviceCategoriesOf,
   serviceCategory,
+  servicesToRecategorize,
   validateServiceCategories,
 } from '../src/lib/booking-options';
 
@@ -143,4 +144,44 @@ test('validação da lista de categorias editada no painel', () => {
   assert.match(validateServiceCategories([...ok, { name: 'Pacotes' }]), /reservado/);
   assert.match(validateServiceCategories([{ name: 'Nail Art', nail_art: true }]), /pelo menos/);
   assert.match(validateServiceCategories([{ name: 'x'.repeat(41) }]), /40 caracteres/);
+});
+
+test('excluir categoria move os serviços dela; renomear leva o novo nome; o resto fica igual', () => {
+  const current = serviceCategoriesOf({
+    service_categories: [
+      { name: 'Aplicação' },
+      { name: 'Manutenção' },
+      { name: 'Esmaltação' },
+      { name: 'Nail Art', nail_art: true },
+    ],
+  });
+  const services = [
+    { id: 1, name: 'Banho de gel', category: 'Aplicação' },
+    { id: 2, name: 'Manutenção - Blindagem', category: 'Manutenção' },
+    { id: 3, name: 'Esmaltação em gel', category: 'Esmaltação' },
+    { id: 4, name: 'Manicure', category: 'Esmaltação' },
+    { id: 5, name: 'Manutenção - Banho de gel', category: 'Cuidados' }, // antigo, sugerido
+    { id: 6, name: 'Nail Art (Cortesia)', category: 'Nail Art' },
+  ];
+  const moved = servicesToRecategorize(
+    services,
+    current,
+    new Map([['Aplicação', 'Alongamentos']]),
+    new Map([
+      ['Esmaltação', 'Alongamentos'],
+      ['Manutenção', 'Aplicação'],
+    ]),
+  );
+  assert.deepEqual(
+    moved.map((s) => [s.id, s.category]),
+    [
+      [1, 'Alongamentos'],
+      [2, 'Aplicação'],
+      [3, 'Alongamentos'],
+      [4, 'Alongamentos'],
+      [5, 'Aplicação'],
+    ],
+  );
+  // Sem mudanças: nenhum serviço é regravado.
+  assert.deepEqual(servicesToRecategorize(services, current, new Map(), new Map()), []);
 });

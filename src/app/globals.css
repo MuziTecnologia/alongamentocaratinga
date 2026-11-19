@@ -3304,14 +3304,68 @@ td .table-person {
 .category-add {
   align-self: flex-start;
 }
+.category-view {
+  padding: 10px 0;
+  border-bottom: 1px solid #edf2e4;
+}
+.category-view > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+.category-view strong {
+  font-size: 12px;
+  font-weight: 500;
+  color: #6f8a5d;
+}
+.category-view .text-button {
+  font-size: 10px;
+}
+.category-view .category-danger {
+  color: #b5786b;
+}
+.category-delete {
+  grid-template-columns: 1fr;
+  padding: 12px;
+  border: 1px solid #f0d9d2;
+  border-radius: 7px;
+  background: #fdf7f5;
+}
+.category-delete p {
+  font-size: 11px;
+  color: #8c6f66;
+}
+.category-delete select {
+  width: 100%;
+  min-height: 41px;
+  padding: 10px 12px;
+  border: 1px solid #e1e9d7;
+  border-radius: 6px;
+  background: #fdfefb;
+  font-size: 11px;
+  color: #70885f;
+}
+.category-delete-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 @media (max-width: 560px) {
   .category-row {
     grid-template-columns: minmax(0, 1fr) auto auto;
     padding-bottom: 10px;
     border-bottom: 1px solid #edf2e4;
   }
-  .category-row > input {
+  .category-row > input,
+  .category-view > div {
     grid-column: 1 / -1;
+  }
+  .category-row.category-delete {
+    grid-template-columns: 1fr;
+    border-bottom: 1px solid #f0d9d2;
   }
 }
 .booking-summary-extra {
