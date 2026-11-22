@@ -98,6 +98,23 @@ export function servicesToRecategorize<T extends ServiceLike>(
   });
 }
 
+/**
+ * Por que um pacote não aparece no agendamento ('' quando aparece): o serviço dele precisa
+ * existir, estar ativo e não ser de uma categoria de nail art (cortesia).
+ */
+export function packageBookingIssue(
+  pack: { active: boolean },
+  service: (ServiceLike & { active: boolean }) | undefined,
+  categories: Categories = DEFAULT_SERVICE_CATEGORIES,
+): string {
+  if (!pack.active) return 'Pacote desativado.';
+  if (!service) return 'O serviço deste pacote não existe mais.';
+  if (!service.active) return `O serviço "${service.name}" está desativado.`;
+  if (isNailArtService(service, categories))
+    return `"${service.name}" é nail art (cortesia) e não pode ser agendado sozinho.`;
+  return '';
+}
+
 /** Valida a lista editada no painel; devolve a mensagem de erro ou ''. */
 export function validateServiceCategories(categories: ServiceCategoryDef[]): string {
   const names = categories.map((c) => c.name.trim());

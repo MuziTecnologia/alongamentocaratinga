@@ -10,6 +10,7 @@ import {
   nailArtLabel,
   nailArtNote,
   nailArtStep,
+  packageBookingIssue,
   packageNote,
   serviceBookingCategory,
   serviceCategoriesOf,
@@ -184,4 +185,32 @@ test('excluir categoria move os serviços dela; renomear leva o novo nome; o res
   );
   // Sem mudanças: nenhum serviço é regravado.
   assert.deepEqual(servicesToRecategorize(services, current, new Map(), new Map()), []);
+});
+
+test('pacote ligado a nail art, serviço desativado ou inexistente não aparece no agendamento', () => {
+  const on = { active: true };
+  assert.equal(
+    packageBookingIssue(on, { name: 'Banho de gel', category: 'Aplicação', active: true }),
+    '',
+  );
+  assert.match(
+    packageBookingIssue(on, {
+      name: 'Nail Art (Cortesia exclusiva)',
+      category: 'Cuidados',
+      active: true,
+    }),
+    /nail art/,
+  );
+  assert.match(
+    packageBookingIssue(on, { name: 'Blindagem', category: 'Aplicação', active: false }),
+    /desativado/,
+  );
+  assert.match(packageBookingIssue(on, undefined), /não existe/);
+  assert.match(
+    packageBookingIssue(
+      { active: false },
+      { name: 'Banho de gel', category: 'Aplicação', active: true },
+    ),
+    /desativado/,
+  );
 });

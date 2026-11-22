@@ -5,6 +5,7 @@ import type { Appointment, TableName, TableMap } from '@/lib/types';
 import {
   addDays,
   atTime,
+  currency,
   dateKey,
   normalizePhone,
   statusLabels,
@@ -20,6 +21,8 @@ import {
   CATEGORY_NAME_MAX,
   bookingCategories,
   explicitServiceCategory,
+  packageBookingIssue,
+  serviceBookingCategory,
   serviceCategoriesOf,
   serviceCategory,
   validateServiceCategories,
@@ -56,6 +59,15 @@ export function EntityEditor({
   const row = initial || {};
   const categories = serviceCategoriesOf(data.business);
   const [newCategory, setNewCategory] = useState(false);
+  // Pacote ligado a serviço que não pode ser agendado (ex.: nail art): pede outro serviço.
+  const currentPackageServiceIssue =
+    kind === 'packages' && row.service_id
+      ? packageBookingIssue(
+          { active: true },
+          data.services.find((s) => s.id === row.service_id),
+          categories,
+        )
+      : '';
   const [err, setErr] = useState(''),
     [confirmDelete, setConfirmDelete] = useState(false);
   const [packageId, setPackageId] = useState(
@@ -392,20 +404,40 @@ export function EntityEditor({
         )}
         {kind === 'packages' && (
           <>
-            <Field label="Serviço do pacote">
+            <Field
+              label="Serviço do pacote"
+              hint={
+                currentPackageServiceIssue
+                  ? `${currentPackageServiceIssue} Escolha o serviço principal para o pacote aparecer no agendamento.`
+                  : 'Somente serviços principais (nail art é cortesia e não entra em pacote).'
+              }
+            >
               <select
                 name="service_id"
                 required
-                defaultValue={text('service_id', data.services.find((s) => s.active)?.id)}
+                defaultValue={currentPackageServiceIssue ? '' : text('service_id')}
               >
                 <option value="">Selecione o serviço</option>
-                {data.services
-                  .filter((s) => s.active || s.id === row.service_id)
-                  .map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
+                {/* Agrupado por categoria, com preço: há serviços com o mesmo nome. */}
+                {categories
+                  .filter((c) => !c.nail_art)
+                  .map((c) => {
+                    const options = data.services.filter(
+                      (s) =>
+                        (s.active || s.id === row.service_id) &&
+                        serviceBookingCategory(s, categories) === c.name,
+                    );
+                    return options.length ? (
+                      <optgroup key={c.name} label={c.name}>
+                        {options.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name} · {currency(s.price)}
+                            {s.active ? '' : ' (desativado)'}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ) : null;
+                  })}
               </select>
             </Field>
             <div className="form-grid">

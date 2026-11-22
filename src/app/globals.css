@@ -3285,6 +3285,12 @@ td .table-person {
   flex-direction: column;
   gap: 16px;
 }
+.package-warning {
+  color: #9a6457;
+  background: #fdf7f5;
+  border-color: #f0d9d2;
+  margin: 4px 0 10px;
+}
 .category-rows {
   display: flex;
   flex-direction: column;

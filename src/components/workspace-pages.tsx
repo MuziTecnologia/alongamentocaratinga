@@ -25,7 +25,7 @@ import { ServicePhoto } from './service-photo';
 import { AddButton, Avatar, Badge, Empty, Modal, PageHeading, SectionHead, Stat } from './ui';
 import { AppointmentList, type OpenEditor } from './workspace';
 import type { Appointment, Client } from '@/lib/types';
-import { serviceCategoriesOf, serviceCategory } from '@/lib/booking-options';
+import { packageBookingIssue, serviceCategoriesOf, serviceCategory } from '@/lib/booking-options';
 import { ServiceCategoriesEditor } from './service-categories-editor';
 import {
   addDays,
@@ -564,6 +564,7 @@ export function ServicesPage({ onEditor }: { onEditor: OpenEditor }) {
 export function PackagesPage({ onEditor }: { onEditor: OpenEditor }) {
   const { data } = useStudio();
   const [tab, setTab] = useState('catalog');
+  const categoryList = serviceCategoriesOf(data.business);
   return (
     <>
       <PageHeading
@@ -595,7 +596,8 @@ export function PackagesPage({ onEditor }: { onEditor: OpenEditor }) {
         <div className="service-grid">
           {data.packages.map((p) => {
             const s = data.services.find((s) => s.id === p.service_id),
-              saving = (s?.price || 0) * p.sessions - p.price;
+              saving = (s?.price || 0) * p.sessions - p.price,
+              issue = p.active ? packageBookingIssue(p, s, categoryList) : '';
             return (
               <article className="package-card" key={p.id}>
                 <div className="service-card-top">
@@ -609,8 +611,15 @@ export function PackagesPage({ onEditor }: { onEditor: OpenEditor }) {
                 <span className="eyebrow">UM COMPROMISSO COM O CUIDADO</span>
                 <h2>{p.name}</h2>
                 <p>
-                  {s?.name} · {p.sessions} sessões
+                  {s ? `${s.name} (${serviceCategory(s, categoryList)})` : 'Sem serviço'} ·{' '}
+                  {p.sessions} sessões
                 </p>
+                {issue && (
+                  <p className="form-note package-warning" role="note">
+                    <strong>Não aparece no agendamento.</strong> {issue} Edite o pacote e escolha o
+                    serviço principal.
+                  </p>
+                )}
                 <div className="package-price">
                   <strong>{currency(p.price)}</strong>
                   <span>{currency(p.price / p.sessions)} por sessão</span>
